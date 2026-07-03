@@ -19,28 +19,38 @@ const App: React.FC = () => {
   const registerSW = async () => {
     if ('serviceWorker' in navigator) {
       try {
-        await navigator.serviceWorker.register('/uv/sw.js', {
+        const registration = await navigator.serviceWorker.register('/uv/sw.js', {
           scope: '/uv/service/',
         });
+        await registration.update();
+        await navigator.serviceWorker.ready;
 
         // Initialize BareMux for UV v3 using absolute URLs
         const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
-        const workerUrl = new URL('/baremux/worker.js', window.location.href).toString();
+        const workerUrl = '/baremux/worker.js';
         const connection = new BareMuxConnection(workerUrl);
         
         const type = localStorage.getItem('ultraproxy_transport_type') || 'wisp';
         const url = localStorage.getItem('ultraproxy_server_url') || 'wss://wisp.mercurywork.shop/';
 
         if (type === 'wisp') {
-          const epoxyUrl = new URL('/epoxy/index.mjs', window.location.href).toString();
+          const epoxyUrl = '/epoxy/index.mjs';
           await connection.setTransport(epoxyUrl, [{ wisp: url }]);
         } else {
-          const bareUrl = new URL('/bare/index.mjs', window.location.href).toString();
+          const bareUrl = '/bare/index.mjs';
           await connection.setTransport(bareUrl, [url]);
         }
 
-        console.log(`UV Service Worker registered with ${type} transport:`, url);
-        setSwRegistered(true);
+        // Ensure the service worker is controlling the page before enabling the UI
+        if (navigator.serviceWorker.controller) {
+          console.log(`UV Service Worker registered with ${type} transport:`, url);
+          setSwRegistered(true);
+        } else {
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log(`UV Service Worker registered with ${type} transport:`, url);
+            setSwRegistered(true);
+          });
+        }
       } catch (err) {
         console.error('UV Service Worker registration failed:', err);
       }
@@ -52,13 +62,13 @@ const App: React.FC = () => {
   const updateTransportConfig = async (type: 'wisp' | 'bare', url: string) => {
     try {
       const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
-      const workerUrl = new URL('/baremux/worker.js', window.location.href).toString();
+      const workerUrl = '/baremux/worker.js';
       const connection = new BareMuxConnection(workerUrl);
       if (type === 'wisp') {
-        const epoxyUrl = new URL('/epoxy/index.mjs', window.location.href).toString();
+        const epoxyUrl = '/epoxy/index.mjs';
         await connection.setTransport(epoxyUrl, [{ wisp: url }]);
       } else {
-        const bareUrl = new URL('/bare/index.mjs', window.location.href).toString();
+        const bareUrl = '/bare/index.mjs';
         await connection.setTransport(bareUrl, [url]);
       }
       localStorage.setItem('ultraproxy_transport_type', type);
