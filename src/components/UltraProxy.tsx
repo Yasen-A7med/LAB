@@ -45,8 +45,30 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
     setSaveError(null);
     setSaveSuccess(false);
 
+    let formattedUrl = localUrl.trim();
+    if (localType === 'wisp') {
+      if (formattedUrl.startsWith('http://') || formattedUrl.startsWith('https://')) {
+        setSaveError('Wisp transport requires a WebSocket URL (ws:// or wss://)');
+        setIsSaving(false);
+        return;
+      }
+      if (!formattedUrl.startsWith('ws://') && !formattedUrl.startsWith('wss://')) {
+        formattedUrl = 'wss://' + formattedUrl;
+      }
+    } else {
+      if (formattedUrl.startsWith('ws://') || formattedUrl.startsWith('wss://')) {
+        setSaveError('Bare transport requires an HTTP URL (http:// or https://)');
+        setIsSaving(false);
+        return;
+      }
+      if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+        formattedUrl = 'https://' + formattedUrl;
+      }
+    }
+
     try {
-      await onUpdateConfig(localType, localUrl.trim());
+      await onUpdateConfig(localType, formattedUrl);
+      setLocalUrl(formattedUrl);
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
