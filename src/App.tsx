@@ -23,17 +23,20 @@ const App: React.FC = () => {
           scope: '/uv/service/',
         });
 
-        // Initialize BareMux for UV v3
+        // Initialize BareMux for UV v3 using absolute URLs
         const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
-        const connection = new BareMuxConnection('/baremux/worker.js');
+        const workerUrl = new URL('/baremux/worker.js', window.location.href).toString();
+        const connection = new BareMuxConnection(workerUrl);
         
         const type = localStorage.getItem('ultraproxy_transport_type') || 'wisp';
         const url = localStorage.getItem('ultraproxy_server_url') || 'wss://wisp.mercurywork.shop/';
 
         if (type === 'wisp') {
-          await connection.setTransport('/epoxy/index.mjs', [{ wisp: url }]);
+          const epoxyUrl = new URL('/epoxy/index.mjs', window.location.href).toString();
+          await connection.setTransport(epoxyUrl, [{ wisp: url }]);
         } else {
-          await connection.setTransport('/bare/index.mjs', [{ url: url }]);
+          const bareUrl = new URL('/bare/index.mjs', window.location.href).toString();
+          await connection.setTransport(bareUrl, [{ url: url }]);
         }
 
         console.log(`UV Service Worker registered with ${type} transport:`, url);
@@ -49,11 +52,14 @@ const App: React.FC = () => {
   const updateTransportConfig = async (type: 'wisp' | 'bare', url: string) => {
     try {
       const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
-      const connection = new BareMuxConnection('/baremux/worker.js');
+      const workerUrl = new URL('/baremux/worker.js', window.location.href).toString();
+      const connection = new BareMuxConnection(workerUrl);
       if (type === 'wisp') {
-        await connection.setTransport('/epoxy/index.mjs', [{ wisp: url }]);
+        const epoxyUrl = new URL('/epoxy/index.mjs', window.location.href).toString();
+        await connection.setTransport(epoxyUrl, [{ wisp: url }]);
       } else {
-        await connection.setTransport('/bare/index.mjs', [{ url: url }]);
+        const bareUrl = new URL('/bare/index.mjs', window.location.href).toString();
+        await connection.setTransport(bareUrl, [{ url: url }]);
       }
       localStorage.setItem('ultraproxy_transport_type', type);
       localStorage.setItem('ultraproxy_server_url', url);
@@ -78,13 +84,13 @@ const App: React.FC = () => {
         <Dashboard 
           onLaunch={handleLaunch} 
           swRegistered={swRegistered} 
-          transportType={transportType}
-          serverUrl={serverUrl}
-          onUpdateConfig={updateTransportConfig}
         />
       ) : (
         <UltraProxy 
           onBack={() => setCurrentView('dashboard')} 
+          transportType={transportType}
+          serverUrl={serverUrl}
+          onUpdateConfig={updateTransportConfig}
         />
       )}
     </>

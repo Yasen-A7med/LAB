@@ -1,63 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Globe, 
   Layers, 
   Zap, 
   Shield, 
   ChevronRight,
-  Wifi,
-  Settings,
-  X,
-  Check
+  Wifi
 } from 'lucide-react';
 
 interface DashboardProps {
   onLaunch: (id: string) => void;
   swRegistered: boolean;
-  transportType: 'wisp' | 'bare';
-  serverUrl: string;
-  onUpdateConfig: (type: 'wisp' | 'bare', url: string) => Promise<void>;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ 
-  onLaunch, 
-  swRegistered,
-  transportType,
-  serverUrl,
-  onUpdateConfig
-}) => {
-  const [showSettings, setShowSettings] = useState(false);
-  const [localType, setLocalType] = useState<'wisp' | 'bare'>(transportType);
-  const [localUrl, setLocalUrl] = useState(serverUrl);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setError(null);
-    setSaveSuccess(false);
-
-    try {
-      await onUpdateConfig(localType, localUrl.trim());
-      setSaveSuccess(true);
-      setTimeout(() => {
-        setSaveSuccess(false);
-        setShowSettings(false);
-      }, 1000);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update configuration.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const selectPreset = (type: 'wisp' | 'bare', url: string) => {
-    setLocalType(type);
-    setLocalUrl(url);
-  };
-
+const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
   return (
     <div className="min-h-screen bg-[#020202] text-white font-sans selection:bg-cyan-500/30 relative overflow-hidden flex flex-col">
       {/* 
@@ -84,16 +40,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-6">
-          {/* Settings Trigger */}
-          <button
-            onClick={() => setShowSettings(true)}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.03] border border-white/10 hover:bg-white/10 hover:border-white/20 hover:scale-110 transition-all duration-300 text-gray-400 hover:text-white"
-            title="Proxy Settings"
-          >
-            <Settings size={20} />
-          </button>
-
+        <div className="flex items-center gap-6">
           {/* Status Indicator */}
           <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-md">
             <div className="relative flex items-center justify-center">
@@ -211,129 +158,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </main>
 
-      {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-          <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative">
-            <button
-              onClick={() => setShowSettings(false)}
-              className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-
-            <h3 className="text-2xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-violet-500">
-              Proxy Configuration
-            </h3>
-
-            <form onSubmit={handleSave} className="flex flex-col gap-6">
-              <div>
-                <label className="block text-sm font-bold text-gray-400 mb-2">Transport Type</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => selectPreset('wisp', 'wss://wisp.mercurywork.shop/')}
-                    className={`py-3 px-4 rounded-xl border font-bold transition-all ${
-                      localType === 'wisp'
-                        ? 'bg-cyan-500/10 border-cyan-400 text-cyan-400'
-                        : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
-                    }`}
-                  >
-                    Wisp (WebSockets)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => selectPreset('bare', 'https://bare.z1g.top/')}
-                    className={`py-3 px-4 rounded-xl border font-bold transition-all ${
-                      localType === 'bare'
-                        ? 'bg-violet-500/10 border-violet-400 text-violet-400'
-                        : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
-                    }`}
-                  >
-                    Bare (HTTP)
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-400 mb-2">Preset Servers</label>
-                <div className="flex flex-wrap gap-2">
-                  {localType === 'wisp' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setLocalUrl('wss://wisp.mercurywork.shop/')}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                          localUrl === 'wss://wisp.mercurywork.shop/'
-                            ? 'bg-cyan-500/10 border-cyan-400/30 text-cyan-400'
-                            : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
-                        }`}
-                      >
-                        Mercury Workshop
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setLocalUrl('https://bare.z1g.top/')}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                          localUrl === 'https://bare.z1g.top/'
-                            ? 'bg-violet-500/10 border-violet-400/30 text-violet-400'
-                            : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
-                        }`}
-                      >
-                        z1g
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLocalUrl('https://bare.benroberts.dev/')}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                          localUrl === 'https://bare.benroberts.dev/'
-                            ? 'bg-violet-500/10 border-violet-400/30 text-violet-400'
-                            : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
-                        }`}
-                      >
-                        Ben Roberts
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-400 mb-2">Server URL</label>
-                <input
-                  type="text"
-                  value={localUrl}
-                  onChange={(e) => setLocalUrl(e.target.value)}
-                  placeholder={localType === 'wisp' ? 'wss://...' : 'https://...'}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-400/50 transition-colors"
-                  required
-                />
-              </div>
-
-              {error && <div className="text-red-400 text-xs font-medium">{error}</div>}
-
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="w-full py-4 bg-gradient-to-r from-cyan-400 to-violet-500 hover:brightness-110 active:scale-95 font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg"
-              >
-                {isSaving ? (
-                  <span>Applying...</span>
-                ) : saveSuccess ? (
-                  <>
-                    <Check size={18} />
-                    <span>Configuration Saved!</span>
-                  </>
-                ) : (
-                  <span>Save Config</span>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

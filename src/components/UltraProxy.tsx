@@ -1,8 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { Search, Globe, Shield, Zap, X, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Search, Globe, Shield, Zap, X, AlertTriangle, ArrowLeft, Settings, Check } from 'lucide-react';
 
 interface UltraProxyProps {
   onBack: () => void;
+  transportType: 'wisp' | 'bare';
+  serverUrl: string;
+  onUpdateConfig: (type: 'wisp' | 'bare', url: string) => Promise<void>;
 }
 
 // UV Encoding function (XOR)
@@ -16,12 +19,50 @@ function encodeUVUrl(url: string): string {
   );
 }
 
-const UltraProxy: React.FC<UltraProxyProps> = ({ onBack }) => {
+const UltraProxy: React.FC<UltraProxyProps> = ({ 
+  onBack,
+  transportType,
+  serverUrl,
+  onUpdateConfig
+}) => {
   const [url, setUrl] = useState('');
   const [isProxying, setIsProxying] = useState(false);
   const [proxyUrl, setProxyUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Settings states inside UltraProxy
+  const [showSettings, setShowSettings] = useState(false);
+  const [localType, setLocalType] = useState<'wisp' | 'bare'>(transportType);
+  const [localUrl, setLocalUrl] = useState(serverUrl);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      await onUpdateConfig(localType, localUrl.trim());
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        setShowSettings(false);
+      }, 1000);
+    } catch (err: any) {
+      setSaveError(err?.message || 'Failed to update configuration.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const selectPreset = (type: 'wisp' | 'bare', url: string) => {
+    setLocalType(type);
+    setLocalUrl(url);
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,13 +103,22 @@ const UltraProxy: React.FC<UltraProxyProps> = ({ onBack }) => {
               {url}
             </span>
           </div>
-          <button
-            onClick={closeProxy}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
-            title="Close Proxy"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+              title="Proxy Settings"
+            >
+              <Settings size={20} />
+            </button>
+            <button
+              onClick={closeProxy}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+              title="Close Proxy"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
         <iframe
           ref={iframeRef}
@@ -84,7 +134,7 @@ const UltraProxy: React.FC<UltraProxyProps> = ({ onBack }) => {
     <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
       {/* Background Glow */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#00f2ff]/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#7000ff]/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[20%] w-[50%] h-[50%] bg-[#7000ff]/10 blur-[120px] rounded-full pointer-events-none" />
 
       {/* Back Button */}
       <div className="absolute top-6 left-6 z-20">
@@ -94,6 +144,17 @@ const UltraProxy: React.FC<UltraProxyProps> = ({ onBack }) => {
         >
           <ArrowLeft size={16} />
           <span>Dashboard</span>
+        </button>
+      </div>
+
+      {/* Settings Button */}
+      <div className="absolute top-6 right-6 z-20">
+        <button
+          onClick={() => setShowSettings(true)}
+          className="flex items-center justify-center w-10 h-10 bg-[#0a0a0a] hover:bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white transition-all duration-200"
+          title="Proxy Settings"
+        >
+          <Settings size={20} />
         </button>
       </div>
 
@@ -169,6 +230,131 @@ const UltraProxy: React.FC<UltraProxyProps> = ({ onBack }) => {
           </div>
         </div>
       </main>
+
+      {/* Settings Modal overlay inside UltraProxy */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative text-white">
+            <button
+              onClick={() => setShowSettings(false)}
+              className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-2xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-[#00f2ff] to-[#7000ff]">
+              Proxy Configuration
+            </h3>
+
+            <form onSubmit={handleSave} className="flex flex-col gap-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-400 mb-2">Transport Type</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => selectPreset('wisp', 'wss://wisp.mercurywork.shop/')}
+                    className={`py-3 px-4 rounded-xl border font-bold transition-all ${
+                      localType === 'wisp'
+                        ? 'bg-[#00f2ff]/10 border-[#00f2ff] text-[#00f2ff]'
+                        : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                    }`}
+                  >
+                    Wisp (WebSockets)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectPreset('bare', 'https://bare.z1g.top/')}
+                    className={`py-3 px-4 rounded-xl border font-bold transition-all ${
+                      localType === 'bare'
+                        ? 'bg-[#7000ff]/10 border-[#7000ff] text-[#7000ff]'
+                        : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                    }`}
+                  >
+                    Bare (HTTP)
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-400 mb-2">Preset Servers</label>
+                <div className="flex flex-wrap gap-2">
+                  {localType === 'wisp' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setLocalUrl('wss://wisp.mercurywork.shop/')}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          localUrl === 'wss://wisp.mercurywork.shop/'
+                            ? 'bg-[#00f2ff]/10 border-[#00f2ff]/30 text-[#00f2ff]'
+                            : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                        }`}
+                      >
+                        Mercury Workshop
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setLocalUrl('https://bare.z1g.top/')}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          localUrl === 'https://bare.z1g.top/'
+                            ? 'bg-[#7000ff]/10 border-[#7000ff]/30 text-[#7000ff]'
+                            : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                        }`}
+                      >
+                        z1g
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLocalUrl('https://bare.benroberts.dev/')}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          localUrl === 'https://bare.benroberts.dev/'
+                            ? 'bg-[#7000ff]/10 border-[#7000ff]/30 text-[#7000ff]'
+                            : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                        }`}
+                      >
+                        Ben Roberts
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-400 mb-2">Server URL</label>
+                <input
+                  type="text"
+                  value={localUrl}
+                  onChange={(e) => setLocalUrl(e.target.value)}
+                  placeholder={localType === 'wisp' ? 'wss://...' : 'https://...'}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#00f2ff]/50 transition-colors"
+                  required
+                />
+              </div>
+
+              {saveError && <div className="text-red-400 text-xs font-medium">{saveError}</div>}
+
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="w-full py-4 bg-gradient-to-r from-[#00f2ff] to-[#7000ff] hover:brightness-110 active:scale-95 font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg"
+              >
+                {isSaving ? (
+                  <span>Applying...</span>
+                ) : saveSuccess ? (
+                  <>
+                    <Check size={18} />
+                    <span>Configuration Saved!</span>
+                  </>
+                ) : (
+                  <span>Save Config</span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
