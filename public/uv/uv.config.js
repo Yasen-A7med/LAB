@@ -1,4 +1,6 @@
-/* Initializing Ultraviolet Configuration */
+/* Ultraviolet Configuration */
+/* This file is used to configure the Ultraviolet service worker and client. */
+
 self.__uv$config = {
     /**
      * The prefix for the Ultraviolet service.
@@ -8,14 +10,20 @@ self.__uv$config = {
 
     /**
      * The bare server endpoints to use.
-     * Implementing a list for failover logic as requested.
-     * @type {string[]}
+     * Note: We use a single string here as required by the UV worker,
+     * but we provide a helper to select the best one in the frontend registration.
+     * @type {string}
      */
-    bare: [
+    bare: 'https://tomp.app/',
+
+    /**
+     * List of reliable public Bare servers for failover logic.
+     */
+    bareServers: [
         'https://tomp.app/',
-        'https://uv.student-portal.xyz/bare/',
-        'https://bare.astroid.wtf/',
         'https://bare.benroberts.dev/',
+        'https://bare.astroid.wtf/',
+        'https://uv.student-portal.xyz/bare/'
     ],
 
     /**
