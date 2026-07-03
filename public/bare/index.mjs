@@ -472,11 +472,10 @@ class ClientV3 extends Client {
             credentials: "omit",
             method: method,
             signal,
-            //@ts-expect-error this exists but isnt typed ig
-            duplex: "half",
         };
         if (body !== undefined) {
             options.body = body;
+            options.duplex = "half";
         }
         if (headers instanceof Headers) {
             headers = Array.from(headers.entries());
