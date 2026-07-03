@@ -3,9 +3,7 @@ import Dashboard from './components/Dashboard';
 import UltraProxy from './components/UltraProxy';
 
 const WISP_SERVERS = [
-  'wss://tomp.app/wisp/',
-  'wss://bare.benroberts.dev/wisp/',
-  'wss://bare.astroid.wtf/wisp/'
+  'wss://wisp.mercurywork.shop/'
 ];
 
 const App: React.FC = () => {

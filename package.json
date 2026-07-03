@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@mercuryworkshop/bare-mux": "^2.1.9",
-    "@mercuryworkshop/epoxy-transport": "^3.0.1",
+    "@mercuryworkshop/epoxy-transport": "^2.1.28",
     "@titaniumnetwork-dev/ultraviolet": "^3.2.10",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
