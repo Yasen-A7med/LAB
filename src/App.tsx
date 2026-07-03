@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import UltraProxy from './components/UltraProxy';
 
-const BARE_SERVERS = [
-  'https://tomp.app/',
-  'https://bare.benroberts.dev/',
-  'https://bare.astroid.wtf/',
-  'https://uv.student-portal.xyz/bare/'
+const WISP_SERVERS = [
+  'wss://tomp.app/wisp/',
+  'wss://bare.benroberts.dev/wisp/',
+  'wss://bare.astroid.wtf/wisp/'
 ];
 
 const App: React.FC = () => {
@@ -20,21 +19,18 @@ const App: React.FC = () => {
   const registerSW = async () => {
     if ('serviceWorker' in navigator) {
       try {
-        // We select a random bare server from the list for basic load balancing/failover
-        const bareServer = BARE_SERVERS[Math.floor(Math.random() * BARE_SERVERS.length)];
-
-        // Inject the selected bare server into the global config before registration
-        // @ts-ignore
-        window.__uv$config = {
-          // @ts-ignore
-          ...window.__uv$config,
-          bare: bareServer
-        };
+        const wispServer = WISP_SERVERS[Math.floor(Math.random() * WISP_SERVERS.length)];
 
         await navigator.serviceWorker.register('/uv/sw.js', {
           scope: '/uv/service/',
         });
-        console.log('UV Service Worker registered with bare:', bareServer);
+
+        // Initialize BareMux for UV v3
+        const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
+        const connection = new BareMuxConnection('/baremux/worker.js');
+        await connection.setTransport('/epoxy/index.mjs', [{ wisp: wispServer }]);
+
+        console.log('UV Service Worker registered with Wisp:', wispServer);
         setSwRegistered(true);
       } catch (err) {
         console.error('UV Service Worker registration failed:', err);
