@@ -416,6 +416,11 @@ class ClientV3 extends Client {
     }
     connect(url, protocols, requestHeaders = [], onopen, onmessage, onclose, onerror) {
         const ws = new WebSocket(this.ws);
+        if (requestHeaders instanceof Headers) {
+            requestHeaders = Array.from(requestHeaders.entries());
+        } else if (!Array.isArray(requestHeaders)) {
+            requestHeaders = Object.entries(requestHeaders || {});
+        }
         requestHeaders.push(["Host", url.host]);
         requestHeaders.push(["Upgrade", "websocket"]);
         requestHeaders.push(["Connection", "Upgrade"]);
@@ -470,6 +475,11 @@ class ClientV3 extends Client {
         };
         if (body !== undefined) {
             options.body = body;
+        }
+        if (headers instanceof Headers) {
+            headers = Array.from(headers.entries());
+        } else if (!Array.isArray(headers)) {
+            headers = Object.entries(headers || {});
         }
         headers.push(["Host", remote.host]);
         options.headers = this.createBareHeaders(remote, headers);
