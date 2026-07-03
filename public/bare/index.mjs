@@ -404,11 +404,13 @@ class ClientV3 extends Client {
         super(3, server);
         this.ws = new URL(this.base);
         this.http = new URL(this.base);
-        if (this.ws.protocol === "https:") {
+        if (this.ws.protocol === "https:" || this.ws.protocol === "wss:") {
             this.ws.protocol = "wss:";
+            this.http.protocol = "https:";
         }
         else {
             this.ws.protocol = "ws:";
+            this.http.protocol = "http:";
         }
     }
     async init() {
