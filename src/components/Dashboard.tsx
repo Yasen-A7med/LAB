@@ -1,176 +1,60 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { 
   Globe, 
   Layers, 
-  Lock, 
-  Activity, 
+  Zap, 
+  Shield, 
   ChevronRight,
-  Terminal
+  Wifi
 } from 'lucide-react';
-
-interface Experiment {
-  id: string;
-  title: string;
-  description: string;
-  tags: string[];
-  status: 'active' | 'coming-soon';
-  category: string;
-}
 
 interface DashboardProps {
   onLaunch: (id: string) => void;
   swRegistered: boolean;
 }
 
-interface TerminalLine {
-  text: string;
-  type: 'input' | 'output' | 'error' | 'system';
-}
-
-const EXPERIMENTS: Experiment[] = [
-  {
-    id: 'ultraproxy',
-    title: 'UltraProxy',
-    description: 'Universal Web Emulator. Bypass ISP blocks for YouTube, Facebook, and beyond using Ultraviolet.',
-    tags: ['Web Proxy', 'XOR-Obfuscated', 'High-Speed'],
-    status: 'active',
-    category: 'Network'
-  },
-  {
-    id: 'ai-sandbox',
-    title: 'AI Playground',
-    description: 'A playground to interact with web-native LLMs, text generation models, and AI utilities.',
-    tags: ['Artificial Intelligence', 'On-device', 'LLM'],
-    status: 'coming-soon',
-    category: 'AI / ML'
-  },
-  {
-    id: 'retro-console',
-    title: 'Retro Games Emulator',
-    description: 'An emulator hosting web-assembly ports of classic console games and utility tools.',
-    tags: ['WebAssembly', 'Gaming', 'Emulator'],
-    status: 'coming-soon',
-    category: 'Games'
-  },
-  {
-    id: 'sys-benchmark',
-    title: 'Hardware Benchmark',
-    description: 'Real-time client telemetry, network throughput testing, and browser performance monitoring.',
-    tags: ['Telemetry', 'Performance', 'WASM'],
-    status: 'coming-soon',
-    category: 'Utility'
-  }
-];
-
 const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
-  const [filter, setFilter] = useState<string>('all');
-  const [terminalInput, setTerminalInput] = useState('');
-  const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([
-    { text: 'YASHOO LAB [Version 1.0.0]', type: 'system' },
-    { text: 'Type "help" to see available commands.', type: 'system' },
-    { text: '', type: 'output' }
-  ]);
-  const terminalEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [terminalHistory]);
-
-  const handleTerminalSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cmd = terminalInput.trim().toLowerCase();
-    if (!cmd) return;
-
-    const newHistory: TerminalLine[] = [...terminalHistory, { text: `guest@yashoo-lab:~$ ${terminalInput}`, type: 'input' }];
-
-    if (cmd === 'clear') {
-      setTerminalHistory([]);
-      setTerminalInput('');
-      return;
-    }
-
-    if (cmd === 'help') {
-      newHistory.push(
-        { text: 'Available commands:', type: 'output' },
-        { text: '  help              Show this help menu', type: 'output' },
-        { text: '  list              List all experiments and their statuses', type: 'output' },
-        { text: '  launch <name>     Launch an active experiment (e.g., launch ultraproxy)', type: 'output' },
-        { text: '  neofetch          Display system parameters and cool info', type: 'output' },
-        { text: '  clear             Clear the terminal console', type: 'output' }
-      );
-    } else if (cmd === 'list') {
-      newHistory.push({ text: 'Active & Inactive Experiments:', type: 'output' });
-      EXPERIMENTS.forEach(exp => {
-        newHistory.push({ 
-          text: `  - ${exp.title} [${exp.status.toUpperCase()}] - ${exp.description}`, 
-          type: exp.status === 'active' ? 'output' : 'system' 
-        });
-      });
-    } else if (cmd.startsWith('launch ')) {
-      const target = cmd.substring(7).trim();
-      if (target === 'ultraproxy') {
-        newHistory.push({ text: 'Launching UltraProxy...', type: 'output' });
-        setTimeout(() => onLaunch('ultraproxy'), 500);
-      } else {
-        newHistory.push({ text: `Experiment "${target}" is either locked or not found. Check 'list'.`, type: 'error' });
-      }
-    } else if (cmd === 'neofetch') {
-      const browser = navigator.userAgent.split(' ').pop() || 'Unknown';
-      newHistory.push(
-        { text: '   __     __        _                   _          _      ', type: 'output' },
-        { text: '   \\ \\   / /       | |                 | |        | |     ', type: 'output' },
-        { text: '    \\ \\_/ /__ _ ___| |__   ___   ___   | |     __ _| |__  ', type: 'output' },
-        { text: '     \\   / _ ` / __| \'_ \\ / _ \\ / _ \\  | |    / _` | \'_ \\ ', type: 'output' },
-        { text: '      | | (_| \\__ \\ | | | (_) | (_) | | |___| (_| | |_) |', type: 'output' },
-        { text: '      |_|\\__,_|___/_| |_|\\___/ \\___/  |______\\__,_|_.__/ ', type: 'output' },
-        { text: '---------------------------------------------------------', type: 'output' },
-        { text: `OS: ${navigator.platform || 'Web Browser OS'}`, type: 'output' },
-        { text: `Host: Yashoo Sandbox Engine v1.0.0`, type: 'output' },
-        { text: `Browser: ${browser}`, type: 'output' },
-        { text: `Service Worker: ${swRegistered ? 'Active & Registered' : 'Inactive'}`, type: 'output' },
-        { text: `Resolution: ${window.screen.width}x${window.screen.height}`, type: 'output' },
-        { text: `Operational Experiments: 1 Active / 3 Pending`, type: 'output' }
-      );
-    } else {
-      newHistory.push({ text: `Command not found: "${cmd}". Type "help" for a list of commands.`, type: 'error' });
-    }
-
-    setTerminalHistory(newHistory);
-    setTerminalInput('');
-  };
-
-  const filteredExperiments = filter === 'all' 
-    ? EXPERIMENTS 
-    : EXPERIMENTS.filter(exp => exp.category.toLowerCase().includes(filter) || exp.status === filter);
-
   return (
-    <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-[#00f2ff]/30 relative overflow-hidden pb-12">
-      {/* Background neon blobs */}
-      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-[#00f2ff]/10 blur-[130px] rounded-full pointer-events-none animate-glow" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-[#7000ff]/10 blur-[130px] rounded-full pointer-events-none animate-glow" style={{ animationDelay: '2s' }} />
+    <div className="min-h-screen bg-[#020202] text-white font-sans selection:bg-cyan-500/30 relative overflow-hidden flex flex-col">
+      {/* 
+        Ultra-Premium Ambient Background 
+        Subtle, slow-moving glowing orbs for a dynamic, alive feel without being distracting.
+      */}
+      <div className="absolute top-[10%] left-[20%] w-[40vw] h-[40vw] bg-cyan-500/10 rounded-full blur-[120px] mix-blend-screen animate-pulse pointer-events-none" style={{ animationDuration: '8s' }} />
+      <div className="absolute bottom-[10%] right-[20%] w-[50vw] h-[50vw] bg-violet-600/10 rounded-full blur-[150px] mix-blend-screen animate-pulse pointer-events-none" style={{ animationDuration: '12s', animationDelay: '2s' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] h-[100vw] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.02)_0%,rgba(0,0,0,0)_60%)] pointer-events-none" />
 
-      {/* Header */}
-      <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-[#030303]/70 border-b border-white/5 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-[#00f2ff] to-[#7000ff] p-[1px]">
-            <div className="w-full h-full bg-[#030303] rounded-xl flex items-center justify-center">
-              <Layers size={18} className="text-[#00f2ff]" />
+      {/* Minimalist Header */}
+      <header className="relative z-30 w-full px-8 py-6 flex items-center justify-between">
+        <div className="flex items-center gap-4 group cursor-default">
+          <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-violet-600 p-[1px] transition-transform duration-500 group-hover:scale-105 group-hover:shadow-[0_0_20px_rgba(34,211,238,0.4)]">
+            <div className="w-full h-full bg-[#050505] rounded-2xl flex items-center justify-center backdrop-blur-xl">
+              <Layers size={22} className="text-cyan-400" />
             </div>
           </div>
-          <div>
-            <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-[#00f2ff] to-white">
-              YASHOO<span className="text-[#7000ff] font-extrabold">.LAB</span>
+          <div className="flex flex-col">
+            <span className="font-extrabold text-2xl tracking-tight text-white leading-none">
+              Yashoo <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-violet-500">Lab.</span>
             </span>
+            <span className="text-xs text-gray-500 font-medium tracking-widest uppercase mt-1">Project Sandbox</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* Status Badge */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono">
-            <span className={`w-2 h-2 rounded-full ${swRegistered ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
-            <span className="text-gray-400">Proxy SW:</span>
-            <span className={swRegistered ? 'text-emerald-400' : 'text-amber-400'}>
-              {swRegistered ? 'Operational' : 'Loading'}
+        <div className="flex items-center gap-6">
+          {/* Status Indicator */}
+          <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-md">
+            <div className="relative flex items-center justify-center">
+              {swRegistered ? (
+                <>
+                  <span className="absolute w-3 h-3 rounded-full bg-emerald-400 animate-ping opacity-75" />
+                  <span className="relative w-2 h-2 rounded-full bg-emerald-400" />
+                </>
+              ) : (
+                <span className="relative w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              )}
+            </div>
+            <span className={`text-xs font-semibold uppercase tracking-wider ${swRegistered ? 'text-emerald-400' : 'text-amber-500'}`}>
+              {swRegistered ? 'Engine Online' : 'Initializing'}
             </span>
           </div>
 
@@ -178,197 +62,102 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
             href="https://github.com/Yasen-A7med/LAB" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-200 text-gray-400 hover:text-white"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.03] border border-white/10 hover:bg-white/10 hover:border-white/20 hover:scale-110 transition-all duration-300 text-gray-400 hover:text-white"
+            aria-label="GitHub Repository"
           >
-            <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" /><path d="M9 18c-4.51 2-5-2-7-2" /></svg>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+              <path d="M9 18c-4.51 2-5-2-7-2" />
+            </svg>
           </a>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-6 mt-12 relative z-10 flex flex-col gap-16">
-        
-        {/* Hero Section */}
-        <section className="text-center md:text-left md:flex md:items-center md:justify-between gap-12">
-          <div className="max-w-2xl flex flex-col gap-6">
-            <div className="inline-flex self-center md:self-start items-center gap-2 px-3 py-1 rounded-full bg-[#00f2ff]/5 border border-[#00f2ff]/20 text-xs text-[#00f2ff] font-mono">
-              <Activity size={12} className="animate-pulse" />
-              <span>System Core v1.0.0 Active</span>
-            </div>
-            <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-none bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">
-              Experimental <br/>
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00f2ff] via-[#b666ff] to-[#7000ff]">
-                Project Sandbox
-              </span>
+      {/* Main Content - Centerpiece Project Showcase */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-6 flex items-center justify-center relative z-20 pb-20">
+        <div className="w-full flex flex-col items-center">
+          
+          <div className="mb-12 text-center max-w-2xl">
+            <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6">
+              Welcome to the <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500">Digital Frontline.</span>
             </h1>
-            <p className="text-gray-400 text-lg leading-relaxed max-w-lg">
-              Explore custom-built web apps, network obfuscation utilities, and interactive experiments. Clean interfaces coupled with core performance engines.
+            <p className="text-lg md:text-xl text-gray-400 font-light leading-relaxed">
+              Experience our flagship web experiment. A seamless, high-performance universal web emulator built for unrestricted access.
             </p>
           </div>
 
-          {/* Core Stats Dashboard Display */}
-          <div className="mt-8 md:mt-0 grid grid-cols-2 gap-4 w-full md:max-w-md">
-            <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl flex flex-col gap-2">
-              <span className="text-gray-500 text-sm font-medium">Active Experiments</span>
-              <span className="text-3xl font-black font-mono text-[#00f2ff]">1</span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl flex flex-col gap-2">
-              <span className="text-gray-500 text-sm font-medium">Bare proxy nodes</span>
-              <span className="text-3xl font-black font-mono text-[#7000ff]">4</span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl flex flex-col gap-2 col-span-2">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500 text-sm font-medium">Gateway Health</span>
-                <span className="text-xs text-emerald-400 font-mono">100%</span>
-              </div>
-              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden mt-1">
-                <div className="h-full bg-gradient-to-r from-[#00f2ff] to-[#7000ff] w-[100%] rounded-full" />
-              </div>
-            </div>
-          </div>
-        </section>
+          {/* Featured Project Card */}
+          <div className="relative group w-full max-w-3xl">
+            {/* Animated Glow Behind Card */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 rounded-[2.5rem] blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-700 pointer-events-none" />
+            
+            {/* Card Body */}
+            <div className="relative w-full bg-[#0a0a0a]/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-8 md:p-12 overflow-hidden shadow-2xl transition-transform duration-500 hover:-translate-y-2">
+              
+              {/* Internal decorative elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-violet-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
-        {/* Filters and Experiment Grid */}
-        <section className="flex flex-col gap-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 gap-4">
-            <h2 className="text-2xl font-black tracking-tight">Hosted Experiments</h2>
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-              {['all', 'active', 'coming-soon'].map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setFilter(cat)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold capitalize border transition-all duration-200 whitespace-nowrap ${
-                    filter === cat 
-                      ? 'bg-[#00f2ff]/10 border-[#00f2ff]/40 text-[#00f2ff]'
-                      : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {cat.replace('-', ' ')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredExperiments.map(exp => (
-              <div 
-                key={exp.id} 
-                className={`bg-[#0a0a0a]/50 border rounded-3xl p-8 flex flex-col justify-between transition-all duration-300 relative group overflow-hidden ${
-                  exp.status === 'active'
-                    ? 'border-white/5 hover:border-[#00f2ff]/30 hover:bg-[#0a0a0a]/80 shadow-2xl hover:shadow-[#00f2ff]/5'
-                    : 'border-white/5 opacity-60'
-                }`}
-              >
-                {/* Background decorative glow on active card hover */}
-                {exp.status === 'active' && (
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#00f2ff]/5 to-transparent rounded-full group-hover:scale-150 transition-transform duration-500 pointer-events-none" />
-                )}
-
-                <div>
-                  {/* Card top tags & status */}
-                  <div className="flex items-center justify-between mb-6">
-                    <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-[10px] uppercase font-bold tracking-wider text-gray-400">
-                      {exp.category}
-                    </span>
-                    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold ${
-                      exp.status === 'active' ? 'text-emerald-400' : 'text-gray-500'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        exp.status === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'
-                      }`} />
-                      {exp.status === 'active' ? 'Operational' : 'Coming Soon'}
-                    </span>
+              <div className="relative z-10 flex flex-col md:flex-row gap-10 items-start">
+                
+                {/* Icon/Visual Area */}
+                <div className="shrink-0 relative">
+                  <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-cyan-900/40 to-violet-900/40 border border-white/10 flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+                    <Globe size={40} className="text-cyan-400 group-hover:text-white transition-colors duration-500" />
                   </div>
-
-                  <h3 className="text-2xl font-bold mb-3 flex items-center gap-2 text-white">
-                    {exp.title}
-                    {exp.status === 'active' ? (
-                      <Globe size={18} className="text-[#00f2ff]" />
-                    ) : (
-                      <Lock size={16} className="text-gray-500" />
-                    )}
-                  </h3>
-
-                  <p className="text-gray-400 text-sm leading-relaxed mb-6">
-                    {exp.description}
-                  </p>
-                </div>
-
-                <div>
-                  {/* Tech stack tags */}
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {exp.tags.map(tag => (
-                      <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-white/[0.03] border border-white/5 text-gray-500">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {exp.status === 'active' ? (
-                    <button
-                      onClick={() => onLaunch(exp.id)}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#00f2ff]/20 to-[#7000ff]/20 hover:from-[#00f2ff]/30 hover:to-[#7000ff]/30 border border-[#00f2ff]/30 hover:border-[#00f2ff]/50 rounded-2xl text-white font-bold transition-all duration-200 active:scale-[0.98] group/btn shadow-lg hover:shadow-[#00f2ff]/10"
-                    >
-                      <span>Launch Emulator</span>
-                      <ChevronRight size={16} className="transform group-hover/btn:translate-x-1 transition-transform" />
-                    </button>
-                  ) : (
-                    <button
-                      disabled
-                      className="w-full py-3 bg-white/5 border border-white/5 rounded-2xl text-gray-600 font-bold flex items-center justify-center gap-2 cursor-not-allowed"
-                    >
-                      <Lock size={14} />
-                      <span>Sandbox Locked</span>
-                    </button>
+                  {swRegistered && (
+                    <div className="absolute -bottom-3 -right-3 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-1.5 backdrop-blur-md">
+                      <Wifi size={12} className="text-emerald-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Live</span>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
 
-        {/* Developer Console Simulator */}
-        <section className="flex flex-col gap-4">
-          <div className="flex items-center gap-2 text-gray-400 px-1">
-            <Terminal size={18} className="text-[#00f2ff]" />
-            <h2 className="font-bold text-sm tracking-widest uppercase">LAB CONSOLE TERMINAL</h2>
-          </div>
-
-          <div className="bg-[#050505] border border-white/5 rounded-3xl p-6 shadow-2xl font-mono text-sm h-72 overflow-y-auto flex flex-col gap-2 border-t-white/10">
-            <div className="flex-1 flex flex-col gap-1.5">
-              {terminalHistory.map((line, idx) => {
-                let colorClass = 'text-gray-300';
-                if (line.type === 'input') colorClass = 'text-white font-bold';
-                if (line.type === 'error') colorClass = 'text-red-400';
-                if (line.type === 'system') colorClass = 'text-gray-500 text-xs';
-                if (line.type === 'output') colorClass = 'text-[#00f2ff]/90';
-                
-                return (
-                  <div key={idx} className={`${colorClass} whitespace-pre-wrap`}>
-                    {line.text}
+                {/* Content Area */}
+                <div className="flex-1 flex flex-col">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                      UltraProxy
+                    </h2>
+                    <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] uppercase font-bold tracking-widest text-cyan-400">
+                      Core Engine
+                    </span>
                   </div>
-                );
-              })}
-              <div ref={terminalEndRef} />
-            </div>
+                  
+                  <p className="text-gray-400 text-base md:text-lg leading-relaxed mb-8 font-light">
+                    A highly advanced, XOR-obfuscated universal web emulator. Bypass ISP restrictions seamlessly while maintaining full support for complex dynamic applications and HD media streaming.
+                  </p>
 
-            <form onSubmit={handleTerminalSubmit} className="flex items-center gap-2 border-t border-white/5 pt-4 mt-2">
-              <span className="text-[#00f2ff] font-bold">guest@yashoo-lab:~$</span>
-              <input
-                type="text"
-                value={terminalInput}
-                onChange={e => setTerminalInput(e.target.value)}
-                placeholder="type 'help'..."
-                className="flex-1 bg-transparent border-none outline-none text-white font-mono placeholder-gray-700"
-              />
-            </form>
+                  <div className="flex flex-wrap items-center gap-4 mb-10">
+                    <div className="flex items-center gap-2 text-sm text-gray-300 font-medium">
+                      <div className="p-1.5 rounded-md bg-white/5"><Zap size={14} className="text-cyan-400" /></div>
+                      Zero CORS
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-300 font-medium">
+                      <div className="p-1.5 rounded-md bg-white/5"><Shield size={14} className="text-violet-400" /></div>
+                      Encrypted Traffic
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onLaunch('ultraproxy')}
+                    className="group/btn relative w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-white text-black font-bold text-lg rounded-2xl overflow-hidden transition-transform active:scale-95"
+                  >
+                    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-cyan-300 to-violet-300 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
+                    <span className="relative z-10 flex items-center gap-2">
+                      Launch Environment
+                      <ChevronRight size={20} className="transition-transform group-hover/btn:translate-x-1" />
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
           </div>
-        </section>
+        </div>
       </main>
 
-      <footer className="mt-20 border-t border-white/5 pt-8 text-center text-xs text-gray-600">
-        <p>© 2026 Yashoo Lab. Built for sandbox testing and development.</p>
-      </footer>
     </div>
   );
 };
