@@ -36,7 +36,7 @@ const App: React.FC = () => {
           await connection.setTransport(epoxyUrl, [{ wisp: url }]);
         } else {
           const bareUrl = new URL('/bare/index.mjs', window.location.href).toString();
-          await connection.setTransport(bareUrl, [{ url: url }]);
+          await connection.setTransport(bareUrl, [url]);
         }
 
         console.log(`UV Service Worker registered with ${type} transport:`, url);
@@ -59,7 +59,7 @@ const App: React.FC = () => {
         await connection.setTransport(epoxyUrl, [{ wisp: url }]);
       } else {
         const bareUrl = new URL('/bare/index.mjs', window.location.href).toString();
-        await connection.setTransport(bareUrl, [{ url: url }]);
+        await connection.setTransport(bareUrl, [url]);
       }
       localStorage.setItem('ultraproxy_transport_type', type);
       localStorage.setItem('ultraproxy_server_url', url);
