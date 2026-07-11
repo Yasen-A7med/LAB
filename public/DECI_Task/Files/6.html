@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<!-- saved from url=(0073)blob:https://deci.eyouthbusiness.com/766a1d04-9f93-42f6-a147-5fac493d1cbb -->
+<html lang="en" data-theme="dark"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Topic 12.1: Recap on Project Requirements | Level 3 AI&amp;DS</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;900&amp;family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&amp;family=JetBrains+Mono:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #faf8ff;
+  --surf: #fff;
+  --surf2: #f1f0ff;
+  --surf3: #e8e6ff;
+  --bdr: #d4d0f5;
+  --bdr2: #b0aaec;
+  --orange: #4338ca;
+  --ora-l: #6366f1;
+  --ora-p: #eef2ff;
+  --ora-m: #c7d2fe;
+  --yellow: #92400e;
+  --yel-p: #fffbeb;
+  --yel-m: #fde68a;
+  --teal: #0e7490;
+  --teal-p: #ecfeff;
+  --teal-m: #a5f3fc;
+  --green: #15803d;
+  --grn-p: #f0fdf4;
+  --grn-m: #86efac;
+  --blue: #1d4ed8;
+  --blu-p: #eff6ff;
+  --blu-m: #bfdbfe;
+  --purple: #7c3aed;
+  --pur-p: #f5f3ff;
+  --pur-m: #ddd6fe;
+  --rose: #be123c;
+  --ros-p: #fff1f2;
+  --ros-m: #fecdd3;
+  --navy: #0f172a;
+  --slate: #1e3a5f;
+  --warm: #1e293b;
+  --text: #0f172a;
+  --text2: #334155;
+  --textm: #64748b;
+  --cbg: #0f172a;
+  --cbdr: #1e293b;
+  --cfg: #e2e8f0;
+  --ckw: #93c5fd;
+  --cstr: #86efac;
+  --cfn: #c084fc;
+  --ccm: #94a3b8;
+  --cnum: #fde68a;
+  --cop: #f9a8d4;
+  --hh: 54px; --tw: 275px; --r: 13px; --rs: 9px;
+  --fh: "Fredoka", "Nunito", "DM Sans", system-ui, sans-serif;
+  --fb: "Nunito", "DM Sans", system-ui, sans-serif;
+  --fm: "JetBrains Mono", "Fira Code", monospace;
+}
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --surf: #1e293b;
+  --surf2: #334155;
+  --surf3: #475569;
+  --bdr: #334155;
+  --bdr2: #475569;
+  --text: #f1f5f9;
+  --text2: #cbd5e1;
+  --textm: #94a3b8;
+  --orange: #818cf8;
+  --ora-l: #a5b4fc;
+  --ora-p: #1e1b4b;
+  --ora-m: #818cf8;
+  --yel-p: #451a03;
+  --teal-p: #134e4a;
+  --grn-p: #064e3b;
+  --blu-p: #1e3a8a;
+  --pur-p: #4c1d95;
+  --ros-p: #831843;
+  --cbg: #020617;
+  --cbdr: #1e293b;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--fb); background: var(--bg); color: var(--text); transition: background .25s, color .25s; min-height: 100vh; line-height: 1.7; }
+#pb { position: fixed; top: 0; left: 0; height: 4px; width: 0%; background: var(--orange); z-index: 9999; border-radius: 0 2px 2px 0; }
+#nav { position: fixed; top: 0; left: 0; right: 0; height: var(--hh); background: var(--navy); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 900; box-shadow: 0 2px 20px rgba(0,0,0,.5); }
+.brand { display: flex; align-items: center; gap: 9px; }
+.bi { font-size: 1.5rem; }
+.bn { font-family: var(--fh); font-weight: 900; color: #fff; font-size: 1rem; letter-spacing: .01em; }
+.bp { background: var(--orange); color: #fff; font-size: .6rem; font-weight: 800; padding: 3px 9px; border-radius: 20px; letter-spacing: .06em; text-transform: uppercase; }
+.nbs { display: flex; gap: 7px; }
+.nb { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); border-radius: 8px; width: 37px; height: 37px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .9rem; color: #c7d2fe; transition: all .15s; }
+.nb:hover { background: rgba(255,255,255,.2); }
+#hb.on { background: #fef9c3; border-color: #ca8a04; color: #713f12; }
+#to { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, .7); z-index: 800; backdrop-filter: blur(5px); }
+#toc { position: fixed; top: var(--hh); left: 0; width: var(--tw); height: calc(100vh - var(--hh)); background: var(--surf); border-right: 1px solid var(--bdr); overflow-y: auto; z-index: 850; transform: translateX(-100%); transition: transform .28s cubic-bezier(.4,0,.2,1); padding: 20px 0 40px; }
+#toc.open { transform: translateX(0); }
+.tlbl { font-family: var(--fm); font-size: .59rem; font-weight: 800; text-transform: uppercase; letter-spacing: .16em; color: var(--textm); padding: 0 18px 14px; }
+#toc ul { list-style: none; }
+#toc ul li a { display: flex; align-items: center; gap: 8px; padding: 9px 18px; font-size: .84rem; color: var(--textm); text-decoration: none; border-left: 3px solid transparent; transition: all .15s; font-family: var(--fb); font-weight: 700; }
+#toc ul li a:hover, #toc ul li a.active { color: var(--ora-l); border-left-color: var(--ora-l); background: var(--ora-p); }
+#main { max-width: 900px; margin: 0 auto; padding: calc(var(--hh) + 30px) 22px 80px; }
+.hero { background: linear-gradient(135deg, var(--navy) 0%, var(--slate) 55%, #0e4a6b 100%); border-radius: var(--r); padding: 44px 50px; margin-bottom: 28px; position: relative; overflow: hidden; }
+.hbg { position: absolute; inset: 0; background-image: radial-gradient(rgba(8,145,178,.15) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none; }
+.horb::before { content: ""; position: absolute; width: 280px; height: 280px; background: radial-gradient(circle, rgba(8,145,178,.20) 0%, transparent 70%); top: -60px; right: -40px; border-radius: 50%; pointer-events: none; }
+.horb::after { content: ""; position: absolute; width: 200px; height: 200px; background: radial-gradient(circle, rgba(14,116,144,.18) 0%, transparent 70%); bottom: -50px; left: -30px; border-radius: 50%; pointer-events: none; }
+.hc { position: relative; }
+.hemi { font-size: 3.4rem; display: block; margin-bottom: 14px; filter: drop-shadow(0 6px 20px rgba(0, 0, 0, .5)); }
+.htags { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.ht { font-family: var(--fm); font-size: .61rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(199,210,254,.3); color: #c7d2fe; background: rgba(199,210,254,.1); }
+.hero h1 { font-family: var(--fh); font-size: 2.1rem; font-weight: 900; color: #ffffff; line-height: 1.18; margin-bottom: 10px; letter-spacing: -.02em; }
+.hero .sub { color: #cbd5e1; font-size: .96rem; line-height: 1.68; max-width: 600px; }
+.sec { background: var(--surf); border: 1.5px solid var(--bdr); border-radius: var(--r); margin-bottom: 12px; overflow: hidden; animation: rise .42s ease both; }
+@keyframes rise { from { opacity: 0; transform: translateY(13px); } to { opacity: 1; transform: translateY(0); } }
+.sh { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; cursor: pointer; gap: 12px; user-select: none; transition: background .15s; }
+.sh:hover { background: var(--surf2); }
+.shl { display: flex; align-items: center; gap: 11px; flex: 1; min-width: 0; }
+.si { font-size: 1.28rem; flex-shrink: 0; }
+.sn { font-family: var(--fh); font-size: 1.02rem; font-weight: 800; color: var(--text); }
+[data-theme="dark"] .sn { color: var(--ora-m); }
+.sc { color: var(--textm); font-size: .82rem; transition: transform .25s; }
+.sec.open .sc { transform: rotate(180deg); }
+.sb { display: none; padding: 4px 22px 26px; border-top: 1.5px solid var(--bdr); }
+.sec.open .sb { display: block; }
+.sb p { font-size: .95rem; line-height: 1.82; color: var(--text2); margin: 14px 0; }
+.sb h3 { font-family: var(--fh); font-size: .92rem; font-weight: 800; color: var(--orange); margin: 22px 0 8px; padding-bottom: 6px; border-bottom: 2px solid var(--orange); }
+[data-theme="dark"] .sb h3 { color: var(--ora-m); border-bottom-color: var(--ora-m); }
+.sb strong { font-weight: 800; color: var(--navy); }
+[data-theme="dark"] .sb strong { color: #c7d2fe; }
+.sb ul, .sb ol { padding-left: 0; list-style: none; margin: 10px 0; }
+.sb ul li { padding: 5px 0 5px 20px; position: relative; font-size: .94rem; line-height: 1.78; color: var(--text2); }
+.sb ul li::before { content: "▸"; position: absolute; left: 0; color: var(--ora-l); font-weight: 800; }
+.box { border-radius: var(--rs); padding: 16px 20px; margin: 18px 0; display: flex; gap: 14px; align-items: flex-start; border: 1.5px solid; }
+.bico { font-size: 1.25rem; flex-shrink: 0; margin-top: 2px; }
+.bbod p { margin: 3px 0 0; font-size: .9rem; line-height: 1.72; }
+.bbod strong { margin-bottom: 4px; font-size: .67rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 900; }
+.box.tip { background: var(--ora-p); border-color: var(--ora-m); }
+.box.warn { background: var(--ros-p); border-color: var(--ros-m); }
+.box.info { background: var(--blu-p); border-color: var(--blu-m); }
+.box.success { background: var(--grn-p); border-color: var(--green); }
+.box.data { background: var(--teal-p); border-color: var(--teal); }
+.box.fun { background: var(--pur-p); border-color: var(--purple); }
+.code { background: var(--cbg); border-radius: var(--rs); border: 1px solid var(--cbdr); margin: 16px 0; overflow: hidden; }
+.codeh { background: rgba(255, 255, 255, .03); padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--cbdr); }
+.codelg { font-family: var(--fm); font-size: .65rem; color: #a3a3a3; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.dots { display: flex; gap: 6px; } .dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.r { background: #ef4444; } .dot.y { background: #f59e0b; } .dot.g { background: #10b981; }
+.codeb { padding: 16px; overflow-x: auto; }
+.codeb pre { font-family: var(--fm); font-size: .8rem; line-height: 1.6; color: #fff; margin: 0; tab-size: 4; }
+.kw { color: var(--ckw); font-weight: 600; } .fn { color: var(--cfn); } .str { color: var(--cstr); } .tx { color: var(--cfg); } .op { color: var(--cop); } .num { color: var(--cnum); } .cm { color: var(--ccm); font-style: italic; }
+.out { background: #071a1d; border: 1px solid #0d3032; border-radius: var(--rs); margin: 16px 0; overflow: hidden; }
+.outh { background: rgba(255, 255, 255, .04); padding: 7px 16px; font-family: var(--fm); font-size: .62rem; color: #2d6a6c; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; border-bottom: 1px solid #0d3032; }
+.outb { padding: 12px 20px; font-family: var(--fm); font-size: .75rem; color: #86efec; line-height: 1.6; overflow-x: auto; white-space: pre-wrap; }
+.quiz { background: var(--surf); border: 1px solid var(--bdr); border-radius: var(--rs); padding: 18px 22px; margin: 20px 0; }
+.qq { display: flex; gap: 14px; align-items: flex-start; font-weight: 700; color: var(--text); margin-bottom: 16px; font-size: .95rem; line-height: 1.6; }
+.qn { background: var(--ora-p); color: var(--ora-l); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: .85rem; flex-shrink: 0; margin-top: 2px; }
+.qopts { display: flex; flex-direction: column; gap: 8px; }
+.qo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--bdr); border-radius: 8px; background: transparent; cursor: pointer; text-align: left; font-family: var(--fb); font-size: .9rem; color: var(--text2); transition: all .15s; }
+.qo:hover:not(:disabled) { border-color: var(--ora-m); background: var(--surf2); }
+.qltr { font-family: var(--fm); font-size: .75rem; font-weight: 800; color: var(--textm); background: var(--surf2); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+.qo:hover:not(:disabled) .qltr { background: var(--ora-p); color: var(--ora-l); }
+.qo:disabled { cursor: default; opacity: .7; }
+.qo.correct { background: var(--green); border-color: var(--green); color: #ffffff; opacity: 1; }
+.qo.correct .qltr { background: var(--green); color: #fff; }
+.qo.wrong { background: var(--rose); border-color: var(--rose); color: #ffffff; opacity: 1; }
+.qo.wrong .qltr { background: var(--rose); color: #fff; }
+.qo.reveal-correct { border-color: var(--grn-m); border-style: dashed; }
+.qfb { display: none; margin-top: 14px; padding: 12px 16px; border-radius: 8px; font-size: .88rem; line-height: 1.6; align-items: flex-start; gap: 10px; }
+.qfb.vis { display: flex; animation: rise .3s ease forwards; }
+.qfb.ok { background: var(--green); border: 1px solid var(--green); color: #ffffff; }
+.qfb.err { background: var(--rose); border: 1px solid var(--rose); color: #ffffff; }
+.vt { border-radius: var(--rs); border: 1.5px solid var(--bdr); overflow: hidden; margin: 12px 0; }
+.vr { display: grid; grid-template-columns: 170px 1fr; border-bottom: 1px solid var(--bdr); }
+.vr:last-child { border-bottom: none; }
+.vr:nth-child(even) { background: var(--surf2); }
+.vk { padding: 11px 16px; font-family: var(--fm); font-weight: 700; font-size: .79rem; color: var(--ora-l); border-right: 1px solid var(--bdr); }
+.vv { padding: 11px 16px; font-size: .88rem; line-height: 1.62; color: var(--text2); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin: 16px 0; }
+.card { background: var(--surf); border: 1.5px solid var(--bdr); border-radius: var(--rs); padding: 16px; position: relative; overflow: hidden; transition: all .2s; }
+.card:hover { transform: translateY(-2px); border-color: var(--bdr2); box-shadow: 0 6px 20px rgba(0, 0, 0, .05); }
+.card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--card-clr, var(--ora-l)); }
+.cico { font-size: 1.25rem; margin-bottom: 8px; }
+.ctit { font-family: var(--fh); font-weight: 800; font-size: .92rem; color: var(--text); margin-bottom: 6px; }
+.cbod { font-size: .84rem; color: var(--text2); line-height: 1.6; }
+.mm { background: var(--surf2); border: 1.5px solid var(--bdr); border-radius: var(--r); padding: 30px; margin: 16px 0; }
+.mmc { background: var(--navy); color: #e2f0ff; font-family: var(--fh); font-weight: 900; font-size: .95rem; padding: 12px 24px; border-radius: 30px; text-align: center; margin-bottom: 24px; border: 1px solid var(--ora-m); }
+.mmb { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+.mb { background: var(--surf); border: 1.5px solid var(--ora-m); border-radius: var(--rs); padding: 16px 20px; flex: 1; min-width: 280px; max-width: 450px; }
+.mbt { font-family: var(--fh); font-weight: 800; font-size: .9rem; color: var(--ora-l); margin-bottom: 6px; }
+.rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 16px 0; }
+.rule-card { background: var(--surf); border: 1.5px solid var(--bdr); border-radius: var(--rs); padding: 16px; }
+.rc-label { font-family: var(--fm); font-size: .68rem; font-weight: 800; color: var(--ora-l); text-transform: uppercase; margin-bottom: 6px; }
+.rc-text { font-family: var(--fh); font-weight: 800; font-size: .92rem; margin-bottom: 6px; }
+.rc-note { font-size: .84rem; color: var(--text2); line-height: 1.5; }
+.step-badge { display: flex; align-items: center; gap: 8px; background: var(--navy); color: #e2f0ff; font-family: var(--fh); font-weight: 900; font-size: .85rem; padding: 6px 16px 6px 8px; border-radius: 30px; margin: 14px 0; border: 1px solid var(--ora-m); }
+.step-badge .sbn { background: var(--ora-l); color: #383838; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--fm); font-size: .7rem; font-weight: 900; flex-shrink: 0; }
+.ctw { overflow-x: auto; margin: 16px 0; border-radius: var(--rs); border: 1.5px solid var(--bdr); }
+.ct { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.ct thead tr { background: var(--navy); }
+.ct th { color: #e2f0ff; padding: 12px 16px; text-align: left; font-family: var(--fm); font-size: .8rem; font-weight: 700; letter-spacing: .06em; white-space: nowrap; border-bottom: 2px solid var(--ora-m); }
+.ct td { padding: 10px 16px; border-bottom: 1px solid var(--bdr); vertical-align: top; line-height: 1.58; color: var(--text2); }
+.ct tr:last-child td { border-bottom: none; }
+.ct tr:nth-child(even) td { background: var(--surf2); }
+.sum-wrap { margin-top: 20px; border: 1.5px solid var(--bdr); border-radius: var(--rs); overflow: hidden; }
+.sum-btn { width: 100%; text-align: left; padding: 16px 22px; background: var(--surf); border: none; font-family: var(--fh); font-size: 1.02rem; font-weight: 800; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background .15s; border-bottom: 1.5px solid transparent; }
+.sum-body { display: none; background: var(--surf); padding: 16px 18px; }
+.sum-body.open { display: block; }
+.sum-btn.open { border-bottom-color: var(--bdr); }
+.rl { list-style: none; padding: 0; }
+.rl li { padding: 11px 0; font-size: .88rem; border-bottom: 1px solid var(--bdr); color: var(--text2); display: flex; gap: 10px; align-items: flex-start; }
+.rl a { color: var(--ora-l); text-decoration: none; font-weight: 700; }
+.img-ill { width: 100%; border-radius: var(--r); border: 1px solid var(--bdr); margin: 20px 0; display: block; }
+.ic { font-family: var(--fm); font-size: .82em; background: var(--surf2); color: var(--ora-l); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--bdr); }
+@media(max-width:640px) {
+  .hero { padding: 28px 20px; } .hero h1 { font-size: 1.5rem; } .hemi { font-size: 2.5rem; }
+  #main { padding: calc(var(--hh) + 18px) 12px 60px; }
+  .rules-grid, .cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="pb"></div>
+<nav id="nav">
+  <div class="brand">
+    <span class="bi">📊</span>
+    <span class="bn">Level 3 AI&amp;DS</span>
+    <span class="bp">Level 3</span>
+  </div>
+  <div class="nbs">
+    <button class="nb" id="tt" title="Contents">☰</button>
+    <button class="nb" id="hb" title="Highlight">✏️</button>
+    <button class="nb" id="tb" title="Theme">☀️</button>
+  </div>
+</nav>
+<div id="to"></div>
+<aside id="toc">
+  <div class="tlbl">In this lesson</div>
+  <ul>
+    <li><a href="blob:https://deci.eyouthbusiness.com/766a1d04-9f93-42f6-a147-5fac493d1cbb#s1" class="tl">🔁 One Notebook, Four Tasks</a></li>
+    <li><a href="blob:https://deci.eyouthbusiness.com/766a1d04-9f93-42f6-a147-5fac493d1cbb#s2" class="tl">📓 Task 1 Recap</a></li>
+    <li><a href="blob:https://deci.eyouthbusiness.com/766a1d04-9f93-42f6-a147-5fac493d1cbb#s3" class="tl">🔬 Task 2 Recap</a></li>
+    <li><a href="blob:https://deci.eyouthbusiness.com/766a1d04-9f93-42f6-a147-5fac493d1cbb#s4" class="tl">📊 Task 3 Recap</a></li>
+    <li><a href="blob:https://deci.eyouthbusiness.com/766a1d04-9f93-42f6-a147-5fac493d1cbb#s5" class="tl">🏁 Task 4 Recap</a></li>
+    <li><a href="blob:https://deci.eyouthbusiness.com/766a1d04-9f93-42f6-a147-5fac493d1cbb#s6" class="tl">📐 The Three Rules, Again</a></li>
+  </ul>
+</aside>
+<main id="main">
+<div class="hero horb">
+  <div class="hbg"></div>
+  <div class="hc">
+    <span class="hemi">🔁</span>
+    <div class="htags">
+      <span class="ht">Week 12</span>
+      <span class="ht">Recap</span>
+      <span class="ht">DigitaMart</span>
+      <span class="ht">Project Requirements</span>
+    </div>
+    <h1>Topic 12.1: Recap on Project Requirements</h1>
+    <p class="sub">A walk back through everything required across all four DigitaMart project tasks, before you submit.</p>
+  </div>
+</div>
+
+<section class="sec open" id="s1">
+  <div class="sh" onclick="togS(this)">
+    <div class="shl">
+      <span class="si">🔁</span>
+      <span class="sn">One Notebook, Four Tasks</span>
+    </div>
+    <span class="sc">▼</span>
+  </div>
+  <div class="sb">
+    <p>Before you submit, this topic reviews everything required in the project. The project's subject is the <strong>DigitaMart</strong> store, and all the work lives in a single notebook inside <strong>Google Colab</strong> — no other tool is used.</p>
+    <div class="box info">
+      <span class="bico">ℹ️</span>
+      <div class="bbod">
+        <strong>Four Tasks, One Pass</strong>
+        <p>The project has four tasks. This recap goes through each one, one at a time, so you can check your own notebook against it before submitting.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec open" id="s2">
+  <div class="sh" onclick="togS(this)">
+    <div class="shl">
+      <span class="si">📓</span>
+      <span class="sn">Task 1 Recap</span>
+    </div>
+    <span class="sc">▼</span>
+  </div>
+  <div class="sb">
+    <p>The first task is preparing the notebook with the required name, <code>StudentID-EgyptData</code>, loading the dataset, and taking a first look at it: the number of rows and columns, and a short description in your own words.</p>
+  </div>
+</section>
+
+<section class="sec open" id="s3">
+  <div class="sh" onclick="togS(this)">
+    <div class="shl">
+      <span class="si">🔬</span>
+      <span class="sn">Task 2 Recap</span>
+    </div>
+    <span class="sc">▼</span>
+  </div>
+  <div class="sb">
+    <p>The second task is inspecting the data and cleaning it: removing duplicates, standardising the city column, handling missing values, and checking for outliers using the IQR method. Right after the inspection step, add a text cell describing the problems found in the data. At the end, the clean file <code>StudentID-EgyptData-clean.csv</code> is saved.</p>
+  </div>
+</section>
+
+<section class="sec open" id="s4">
+  <div class="sh" onclick="togS(this)">
+    <div class="shl">
+      <span class="si">📊</span>
+      <span class="sn">Task 3 Recap</span>
+    </div>
+    <span class="sc">▼</span>
+  </div>
+  <div class="sb">
+    <p>The third task is doing the analysis and building the charts. Write at least three analysis goals, answer them with <code>pandas</code>, and build at least three charts. Each chart needs a title and labels, and beneath them, three sentences summarising the biggest finding with a number, and a recommendation.</p>
+  </div>
+</section>
+
+<section class="sec open" id="s5">
+  <div class="sh" onclick="togS(this)">
+    <div class="shl">
+      <span class="si">🏁</span>
+      <span class="sn">Task 4 Recap</span>
+    </div>
+    <span class="sc">▼</span>
+  </div>
+  <div class="sb">
+    <p>The fourth task is writing up the results and submitting: two insights, each with an Observation, an Evidence, and an Implication, and two hypotheses written as questions. After that, run every cell with no errors, set sharing on both files to "Anyone with the link," and submit the link to the notebook and the link to the cleaned dataset.</p>
+  </div>
+</section>
+
+<section class="sec open" id="s6">
+  <div class="sh" onclick="togS(this)">
+    <div class="shl">
+      <span class="si">📐</span>
+      <span class="sn">The Three Rules, Again</span>
+    </div>
+    <span class="sc">▼</span>
+  </div>
+  <div class="sb">
+    <p>Before you close this reading, remember the three rules that apply across the whole project.</p>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rc-label">Rule 1</div>
+        <div class="rc-text">Correct Notebook Name</div>
+        <div class="rc-note">The notebook name must be correct: StudentID-EgyptData.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rc-label">Rule 2</div>
+        <div class="rc-text">Intro Text Cell</div>
+        <div class="rc-note">Above it, a text cell with your name and your ID number.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rc-label">Rule 3</div>
+        <div class="rc-text">Every Result From a Working Cell</div>
+        <div class="rc-note">Every result actually comes from a cell that ran.</div>
+      </div>
+    </div>
+    <div class="sum-wrap">
+      <button class="sum-btn" onclick="togSum(this)">📌 Topic Summary <span class="sa">▼</span></button>
+      <div class="sum-body">
+        <ul>
+          <li>All project work lives in one Google Colab notebook, named StudentID-EgyptData, with no other tool involved.</li>
+          <li>Task 1 covers notebook setup, loading the dataset, and a first look: row/column counts and a short description.</li>
+          <li>Task 2 covers inspecting the data, a text cell describing the problems found, removing duplicates, standardising cities, handling missing values, checking outliers with IQR, and saving StudentID-EgyptData-clean.csv.</li>
+          <li>Task 3 covers writing at least three analysis goals, answering them with pandas, building at least three labelled charts, and summarising the biggest finding with a recommendation.</li>
+          <li>Task 4 covers two insights (Observation, Evidence, Implication), two hypotheses written as questions, running every cell with no errors, sharing both files with "Anyone with the link," and submitting the link to the notebook and the link to the cleaned dataset.</li>
+          <li>Three rules apply throughout: the correct notebook name, an intro text cell with your name and ID, and every result coming from a cell that actually ran.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+(function () { var t = localStorage.getItem('py2t') || 'dark'; if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); var b = document.getElementById('tb'); if (b) b.textContent = t === 'dark' ? '☀️' : '🌙'; })();
+document.getElementById('tb').addEventListener('click', function () { var d = document.documentElement.getAttribute('data-theme') === 'dark'; document.documentElement.setAttribute('data-theme', d ? 'light' : 'dark'); localStorage.setItem('py2t', d ? 'light' : 'dark'); this.textContent = d ? '🌙' : '☀️'; });
+window.addEventListener('scroll', function () { var s = window.scrollY, h = document.documentElement.scrollHeight - document.documentElement.clientHeight; document.getElementById('pb').style.width = (s / h * 100) + '%'; }, { passive: true });
+var tc = document.getElementById('toc'), ov = document.getElementById('to');
+document.getElementById('tt').addEventListener('click', function () { var o = tc.classList.toggle('open'); ov.style.display = o ? 'block' : 'none'; });
+ov.addEventListener('click', function () { tc.classList.remove('open'); ov.style.display = 'none'; });
+var tls = Array.from(document.querySelectorAll('.tl'));
+var ids = tls.map(function (l) { return l.getAttribute('href').replace('#', ''); });
+function updT() { var a = ids[0]; ids.forEach(function (id) { var el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 105) a = id; }); tls.forEach(function (l) { l.classList.toggle('active', l.getAttribute('href') === '#' + a); }); }
+window.addEventListener('scroll', updT, { passive: true }); updT();
+function togS(h) { h.parentElement.classList.toggle('open'); }
+function togSum(b) { var bd = b.nextElementSibling, o = bd.classList.toggle('open'); b.querySelector('.sa').textContent = o ? '▲' : '▼'; b.classList.toggle('open', o); }
+function qz(btn, id) {
+  var opts = document.querySelectorAll('[data-q="' + id + '"]');
+  var ok = btn.dataset.correct === '1';
+  var fb = document.getElementById('fb-' + id);
+  opts.forEach(function (o) {
+    o.disabled = true;
+    if (o === btn && ok) o.classList.add('correct');
+    else if (o === btn && !ok) o.classList.add('wrong');
+    else if (o.dataset.correct === '1') o.classList.add('reveal-correct');
+    else o.classList.add('reveal-wrong');
+  });
+  if (fb) {
+    fb.className = 'qfb vis ' + (ok ? 'ok' : 'err');
+    fb.innerHTML = '<span class="qfbico">' + (ok ? '🎉' : '💡') + '</span><div class="qfbtxt"><strong>' + (ok ? 'Correct!' : 'Not quite — but here\'s why:') + ' </strong>' + btn.dataset.expl + '</div>';
+  }
+}
+var hlOn = false; document.getElementById('hb').addEventListener('click', function () { hlOn = !hlOn; this.classList.toggle('on', hlOn); });
+document.addEventListener('mouseup', function () { if (!hlOn) return; var s = window.getSelection(); if (!s || s.isCollapsed || !s.rangeCount) return; var text = s.toString().trim(); if (!text) return; try { var r = s.getRangeAt(0); var m = document.createElement('mark'); m.className = 'hl'; m.title = 'Click to remove'; m.onclick = function () { var p = this.parentNode; while (this.firstChild) p.insertBefore(this.firstChild, this); p.removeChild(this); }; r.surroundContents(m); s.removeAllRanges(); } catch (e) { s.removeAllRanges(); } });
+</script>
+
+
+</body></html>

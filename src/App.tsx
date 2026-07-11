@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import UltraProxy from './components/UltraProxy';
+import DeciTask from './components/DeciTask';
 
 const App: React.FC = () => {
-  const [currentView] = useState<'dashboard' | 'ultraproxy'>(() => {
-    return window.location.pathname === '/ultraproxy' ? 'ultraproxy' : 'dashboard';
+  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'decitask'>(() => {
+    if (window.location.pathname === '/ultraproxy') return 'ultraproxy';
+    if (window.location.pathname === '/decitask' || window.location.pathname === '/deci') return 'decitask';
+    return 'dashboard';
   });
   const [swRegistered, setSwRegistered] = useState(false);
   const [transportType, setTransportType] = useState<'wisp' | 'bare'>(() => {
@@ -16,6 +19,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     registerSW();
+
+    const handlePopState = () => {
+      if (window.location.pathname === '/ultraproxy') {
+        setCurrentView('ultraproxy');
+      } else if (window.location.pathname === '/decitask' || window.location.pathname === '/deci') {
+        setCurrentView('decitask');
+      } else {
+        setCurrentView('dashboard');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const registerSW = async () => {
@@ -87,24 +102,36 @@ const App: React.FC = () => {
   const handleLaunch = (id: string) => {
     if (id === 'ultraproxy') {
       window.open('/ultraproxy', '_blank');
+    } else if (id === 'decitask') {
+      window.history.pushState({}, '', '/decitask');
+      setCurrentView('decitask');
     }
+  };
+
+  const handleBack = () => {
+    window.history.pushState({}, '', '/');
+    setCurrentView('dashboard');
   };
 
   return (
     <>
-      {currentView === 'dashboard' ? (
+      {currentView === 'dashboard' && (
         <Dashboard 
           onLaunch={handleLaunch} 
           swRegistered={swRegistered} 
         />
-      ) : (
+      )}
+      {currentView === 'ultraproxy' && (
         <UltraProxy 
-          onBack={() => {
-            window.location.href = '/';
-          }} 
+          onBack={handleBack} 
           transportType={transportType}
           serverUrl={serverUrl}
           onUpdateConfig={updateTransportConfig}
+        />
+      )}
+      {currentView === 'decitask' && (
+        <DeciTask 
+          onBack={handleBack}
         />
       )}
     </>

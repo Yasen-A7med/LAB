@@ -2,10 +2,8 @@ import React from 'react';
 import { 
   Globe, 
   Layers, 
-  Zap, 
-  Shield, 
   ChevronRight,
-  Wifi
+  BookOpen
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -74,87 +72,112 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
       </header>
 
       {/* Main Content - Centerpiece Project Showcase */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-6 flex items-center justify-center relative z-20 pb-20">
-        <div className="w-full flex flex-col items-center">
-          
-          <div className="mb-12 text-center max-w-2xl">
-            <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6">
-              Welcome to the <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500">Digital Frontline.</span>
-            </h1>
-            <p className="text-lg md:text-xl text-gray-400 font-light leading-relaxed">
-              Experience our flagship web experiment. A seamless, high-performance universal web emulator built for unrestricted access.
-            </p>
+      <main className="flex-1 w-full max-w-5xl mx-auto px-6 flex flex-col items-center justify-center relative z-20 pb-20">
+        
+        {/* Student Info Hero Card - At the beginning of the site */}
+        <div className="mb-10 inline-flex flex-col sm:flex-row items-center gap-3 sm:gap-4 bg-gradient-to-r from-indigo-950/30 to-cyan-950/30 border border-indigo-500/20 rounded-2xl p-3.5 px-6 shadow-[0_0_30px_rgba(99,102,241,0.06)] backdrop-blur-md">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+            </span>
+            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+              Student Credentials / معلومات الطالب
+            </span>
           </div>
+          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+          <div className="text-sm font-extrabold text-white tracking-wide text-center sm:text-left">
+            يس أحمد صالح عبدالخالق محمد <span className="text-gray-400 font-normal">({`Yasen Ahmed Saleh`})</span>
+          </div>
+          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+          <div className="font-mono text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
+            ID: <span className="tracking-wide">EYOUTH-30901290101397</span>
+          </div>
+        </div>
 
-          {/* Featured Project Card */}
-          <div className="relative group w-full max-w-3xl">
-            {/* Animated Glow Behind Card */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 rounded-[2.5rem] blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-700 pointer-events-none" />
+        <div className="mb-10 text-center max-w-2xl">
+          <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6">
+            Welcome to the <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500">Digital Frontline.</span>
+          </h1>
+          <p className="text-lg md:text-xl text-gray-400 font-light leading-relaxed">
+            Discover our sandbox of high-performance tools, proxy servers, and interactive educational workspaces.
+          </p>
+        </div>
+
+        {/* Projects Showcase Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+          
+          {/* Card 1: DECI Task Hub */}
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-[2rem] blur-xl opacity-20 group-hover:opacity-35 transition-opacity duration-700 pointer-events-none" />
             
-            {/* Card Body */}
-            <div className="relative w-full bg-[#0a0a0a]/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-8 md:p-12 overflow-hidden shadow-2xl transition-transform duration-500 hover:-translate-y-2">
+            <div className="relative h-full bg-[#0a0a0d]/80 backdrop-blur-3xl border border-white/10 rounded-[1.8rem] p-8 overflow-hidden shadow-2xl transition-all duration-500 hover:-translate-y-1.5 flex flex-col justify-between min-h-[300px]">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
               
-              {/* Internal decorative elements */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-violet-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-
-              <div className="relative z-10 flex flex-col md:flex-row gap-10 items-start">
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-900/40 to-cyan-900/40 border border-indigo-500/20 flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+                    <BookOpen size={26} className="text-indigo-400" />
+                  </div>
+                  <div>
+                    <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] uppercase font-bold tracking-widest text-indigo-400">
+                      Course Portal
+                    </span>
+                    <h3 className="text-2xl font-bold text-white tracking-tight mt-0.5">DECI Task Hub</h3>
+                  </div>
+                </div>
                 
-                {/* Icon/Visual Area */}
-                <div className="shrink-0 relative">
-                  <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-cyan-900/40 to-violet-900/40 border border-white/10 flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-                    <Globe size={40} className="text-cyan-400 group-hover:text-white transition-colors duration-500" />
-                  </div>
-                  {swRegistered && (
-                    <div className="absolute -bottom-3 -right-3 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-1.5 backdrop-blur-md">
-                      <Wifi size={12} className="text-emerald-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Live</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Content Area */}
-                <div className="flex-1 flex flex-col">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                      UltraProxy
-                    </h2>
-                    <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] uppercase font-bold tracking-widest text-cyan-400">
-                      Core Engine
-                    </span>
-                  </div>
-                  
-                  <p className="text-gray-400 text-base md:text-lg leading-relaxed mb-8 font-light">
-                    A highly advanced, XOR-obfuscated universal web emulator. Bypass ISP restrictions seamlessly while maintaining full support for complex dynamic applications and HD media streaming.
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-4 mb-10">
-                    <div className="flex items-center gap-2 text-sm text-gray-300 font-medium">
-                      <div className="p-1.5 rounded-md bg-white/5"><Zap size={14} className="text-cyan-400" /></div>
-                      Zero CORS
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-300 font-medium">
-                      <div className="p-1.5 rounded-md bg-white/5"><Shield size={14} className="text-violet-400" /></div>
-                      Encrypted Traffic
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => onLaunch('ultraproxy')}
-                    className="group/btn relative w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-white text-black font-bold text-lg rounded-2xl overflow-hidden transition-transform active:scale-95"
-                  >
-                    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-cyan-300 to-violet-300 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
-                    <span className="relative z-10 flex items-center gap-2">
-                      Launch Environment
-                      <ChevronRight size={20} className="transition-transform group-hover/btn:translate-x-1" />
-                    </span>
-                  </button>
-                </div>
+                <p className="text-gray-400 text-sm leading-relaxed mb-6 font-light">
+                  Interactive syllabus and task viewer. Displays classroom videos side-by-side with official HTML documentation and lecture notes.
+                </p>
               </div>
 
+              <button
+                onClick={() => onLaunch('decitask')}
+                className="group/btn relative w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl overflow-hidden transition-all duration-300 active:scale-95 shadow-[0_4px_20px_rgba(99,102,241,0.2)]"
+              >
+                <span>Launch Portal</span>
+                <ChevronRight size={16} className="transition-transform group-hover/btn:translate-x-1" />
+              </button>
             </div>
           </div>
+
+          {/* Card 2: UltraProxy */}
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-[2rem] blur-xl opacity-20 group-hover:opacity-35 transition-opacity duration-700 pointer-events-none" />
+            
+            <div className="relative h-full bg-[#0a0a0d]/80 backdrop-blur-3xl border border-white/10 rounded-[1.8rem] p-8 overflow-hidden shadow-2xl transition-all duration-500 hover:-translate-y-1.5 flex flex-col justify-between min-h-[300px]">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+              
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-900/40 to-violet-900/40 border border-white/10 flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+                    <Globe size={26} className="text-cyan-400" />
+                  </div>
+                  <div>
+                    <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] uppercase font-bold tracking-widest text-cyan-400">
+                      Proxy Sandbox
+                    </span>
+                    <h3 className="text-2xl font-bold text-white tracking-tight mt-0.5">UltraProxy</h3>
+                  </div>
+                </div>
+                
+                <p className="text-gray-400 text-sm leading-relaxed mb-6 font-light">
+                  Advanced web proxy with XOR obfuscation. Access web resources freely without CORS issues or tracking, optimizing streaming performance.
+                </p>
+              </div>
+
+              <button
+                onClick={() => onLaunch('ultraproxy')}
+                className="group/btn relative w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-white hover:bg-gray-100 text-black font-bold text-sm rounded-xl overflow-hidden transition-all duration-300 active:scale-95"
+              >
+                <span>Launch Proxy</span>
+                <ChevronRight size={16} className="transition-transform group-hover/btn:translate-x-1" />
+              </button>
+            </div>
+          </div>
+
         </div>
       </main>
 
