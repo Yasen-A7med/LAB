@@ -39,40 +39,41 @@ const App: React.FC = () => {
         const registration = await navigator.serviceWorker.register('/uv/sw.js', {
           scope: '/uv/service/',
         });
-        await registration.update();
-        await navigator.serviceWorker.ready;
 
-        // Initialize BareMux for UV v3 using absolute URLs
+        // Wait for the SW to become active (don't use navigator.serviceWorker.ready
+        // because it only resolves when the SW controls THIS page, and our scope
+        // is /uv/service/ which doesn't include / or /ultraproxy)
+        if (!registration.active) {
+          await new Promise<void>((resolve) => {
+            const sw = registration.installing || registration.waiting;
+            if (!sw) { resolve(); return; }
+            sw.addEventListener('statechange', () => {
+              if (sw.state === 'activated') resolve();
+            });
+          });
+        }
+
+        // Initialize BareMux transport
         const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
-        const workerUrl = '/baremux/worker.js';
-        const connection = new BareMuxConnection(workerUrl);
+        const connection = new BareMuxConnection('/baremux/worker.js');
         
         const type = localStorage.getItem('ultraproxy_transport_type') || 'wisp';
         const url = localStorage.getItem('ultraproxy_server_url') || 'wss://wisp.mercurywork.shop/';
 
         if (type === 'wisp') {
-          const epoxyUrl = '/epoxy/index.mjs';
-          await connection.setTransport(epoxyUrl, [{ wisp: url }]);
+          await connection.setTransport('/epoxy/index.mjs', [{ wisp: url }]);
         } else {
-          const bareUrl = '/bare/index.mjs';
-          await connection.setTransport(bareUrl, [url]);
+          await connection.setTransport('/bare/index.mjs', [url]);
         }
 
-        console.log(`UV Service Worker registered with ${type} transport:`, url);
+        console.log(`UV Transport initialized: ${type} -> ${url}`);
         setSwRegistered(true);
       } catch (err) {
-        console.error('UV Service Worker registration failed:', err);
-        // Still mark as registered if the SW itself is active, even if transport failed
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          if (regs.some(r => r.active)) {
-            console.warn('SW is active but transport setup failed. Proxy may not work.');
-            setSwRegistered(true);
-          }
-        } catch {}
+        console.error('UV setup failed:', err);
+        setSwRegistered(true); // Allow UI even if transport fails
       }
     } else {
-      console.warn('Your browser does not support Service Workers.');
+      console.warn('Service Workers not supported');
     }
   };
 
