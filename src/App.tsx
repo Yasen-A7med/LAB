@@ -3,7 +3,9 @@ import Dashboard from './components/Dashboard';
 import UltraProxy from './components/UltraProxy';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy'>('dashboard');
+  const [currentView] = useState<'dashboard' | 'ultraproxy'>(() => {
+    return window.location.pathname === '/ultraproxy' ? 'ultraproxy' : 'dashboard';
+  });
   const [swRegistered, setSwRegistered] = useState(false);
   const [transportType, setTransportType] = useState<'wisp' | 'bare'>(() => {
     return (localStorage.getItem('ultraproxy_transport_type') as 'wisp' | 'bare') || 'wisp';
@@ -84,7 +86,7 @@ const App: React.FC = () => {
 
   const handleLaunch = (id: string) => {
     if (id === 'ultraproxy') {
-      setCurrentView('ultraproxy');
+      window.open('/ultraproxy', '_blank');
     }
   };
 
@@ -97,7 +99,9 @@ const App: React.FC = () => {
         />
       ) : (
         <UltraProxy 
-          onBack={() => setCurrentView('dashboard')} 
+          onBack={() => {
+            window.location.href = '/';
+          }} 
           transportType={transportType}
           serverUrl={serverUrl}
           onUpdateConfig={updateTransportConfig}
