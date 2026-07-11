@@ -74,27 +74,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
       {/* Main Content - Centerpiece Project Showcase */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-6 flex flex-col items-center justify-center relative z-20 pb-20">
         
-        {/* Student Info Hero Card - At the beginning of the site */}
-        <div className="mb-10 inline-flex flex-col sm:flex-row items-center gap-3 sm:gap-4 bg-gradient-to-r from-indigo-950/30 to-cyan-950/30 border border-indigo-500/20 rounded-2xl p-3.5 px-6 shadow-[0_0_30px_rgba(99,102,241,0.06)] backdrop-blur-md">
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
-              Student Credentials / معلومات الطالب
-            </span>
-          </div>
-          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
-          <div className="text-sm font-extrabold text-white tracking-wide text-center sm:text-left">
-            يس أحمد صالح عبدالخالق محمد <span className="text-gray-400 font-normal">({`Yasen Ahmed Saleh`})</span>
-          </div>
-          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
-          <div className="font-mono text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
-            ID: <span className="tracking-wide">EYOUTH-30901290101397</span>
-          </div>
-        </div>
-
         <div className="mb-10 text-center max-w-2xl">
           <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6">
             Welcome to the <br />
