@@ -58,18 +58,18 @@ const App: React.FC = () => {
           await connection.setTransport(bareUrl, [url]);
         }
 
-        // Ensure the service worker is controlling the page before enabling the UI
-        if (navigator.serviceWorker.controller) {
-          console.log(`UV Service Worker registered with ${type} transport:`, url);
-          setSwRegistered(true);
-        } else {
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            console.log(`UV Service Worker registered with ${type} transport:`, url);
-            setSwRegistered(true);
-          });
-        }
+        console.log(`UV Service Worker registered with ${type} transport:`, url);
+        setSwRegistered(true);
       } catch (err) {
         console.error('UV Service Worker registration failed:', err);
+        // Still mark as registered if the SW itself is active, even if transport failed
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          if (regs.some(r => r.active)) {
+            console.warn('SW is active but transport setup failed. Proxy may not work.');
+            setSwRegistered(true);
+          }
+        } catch {}
       }
     } else {
       console.warn('Your browser does not support Service Workers.');
