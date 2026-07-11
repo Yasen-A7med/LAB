@@ -1,7 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/uv/service/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!uv/|epoxy/|baremux/|bare/|assets/).*)",
       "destination": "/index.html"
     }
   ]

@@ -5,7 +5,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!uv/|epoxy/|baremux/|bare/|assets/).*)",
       "destination": "/index.html"
     }
   ]
