@@ -273,7 +273,6 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
           <iframe
             ref={iframeRef}
             src={proxyUrl}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads"
             className="flex-1 w-full border-none bg-white"
             title="Proxy Content"
           />
