@@ -95,7 +95,7 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
 
     // Simple search engine logic if not a valid URL
     if (!targetUrl.includes('.') || targetUrl.includes(' ')) {
-      targetUrl = `https://www.google.com/search?q=${encodeURIComponent(targetUrl)}`;
+      targetUrl = `https://duckduckgo.com/?q=${encodeURIComponent(targetUrl)}`;
     } else {
       if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
         targetUrl = 'https://' + targetUrl;
