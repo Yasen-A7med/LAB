@@ -138,7 +138,7 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => selectPreset('wisp', 'wss://wisp.mercurywork.shop/')}
+                  onClick={() => selectPreset('wisp', 'wss://anura.pro/wisp/')}
                   className={`py-3 px-4 rounded-xl border font-bold transition-all ${
                     localType === 'wisp'
                       ? 'bg-[#00f2ff]/10 border-[#00f2ff] text-[#00f2ff]'
@@ -168,6 +168,17 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
                   <>
                     <button
                       type="button"
+                      onClick={() => setLocalUrl('wss://anura.pro/wisp/')}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        localUrl === 'wss://anura.pro/wisp/'
+                          ? 'bg-[#00f2ff]/10 border-[#00f2ff]/30 text-[#00f2ff]'
+                          : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                      }`}
+                    >
+                      Anura (Recommended)
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setLocalUrl('wss://wisp.mercurywork.shop/')}
                       className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                         localUrl === 'wss://wisp.mercurywork.shop/'
@@ -190,17 +201,6 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
                       }`}
                     >
                       z1g
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLocalUrl('https://bare.benroberts.dev/')}
-                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                        localUrl === 'https://bare.benroberts.dev/'
-                          ? 'bg-[#7000ff]/10 border-[#7000ff]/30 text-[#7000ff]'
-                          : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
-                      }`}
-                    >
-                      Ben Roberts
                     </button>
                   </>
                 )}
