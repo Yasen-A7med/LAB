@@ -58,15 +58,62 @@ const App: React.FC = () => {
         const connection = new BareMuxConnection('/baremux/worker.js');
         
         const type = localStorage.getItem('ultraproxy_transport_type') || 'wisp';
-        const url = localStorage.getItem('ultraproxy_server_url') || 'wss://nebulaproxy.io/wisp/';
+        const userUrl = localStorage.getItem('ultraproxy_server_url') || 'wss://nebulaproxy.io/wisp/';
 
         if (type === 'wisp') {
-          await connection.setTransport('/epoxy/index.mjs', [{ wisp: url }]);
+          // Wisp servers to try in order (user's choice first, then fallbacks)
+          const FALLBACK_WISPS = [
+            'wss://nebulaproxy.io/wisp/',
+            'wss://anura.pro/wisp/',
+            'wss://wisp.mercurywork.shop/',
+            'wss://wisp.incognito.surf/',
+          ];
+          const servers = [userUrl, ...FALLBACK_WISPS.filter(s => s !== userUrl)];
+          
+          // Test WebSocket connectivity before using a server
+          const testWisp = (url: string, timeoutMs = 5000): Promise<boolean> => {
+            return new Promise((resolve) => {
+              try {
+                const ws = new WebSocket(url);
+                const timer = setTimeout(() => { 
+                  try { ws.close(); } catch(e) {}
+                  resolve(false); 
+                }, timeoutMs);
+                ws.onopen = () => { 
+                  clearTimeout(timer); 
+                  ws.close(); 
+                  resolve(true); 
+                };
+                ws.onerror = () => { 
+                  clearTimeout(timer); 
+                  resolve(false); 
+                };
+              } catch(e) {
+                resolve(false);
+              }
+            });
+          };
+
+          let chosenServer = servers[0];
+          for (const server of servers) {
+            console.log(`UV Testing wisp server: ${server}...`);
+            const ok = await testWisp(server);
+            if (ok) {
+              chosenServer = server;
+              console.log(`UV Wisp server OK: ${server}`);
+              break;
+            } else {
+              console.warn(`UV Wisp server FAILED: ${server}, trying next...`);
+            }
+          }
+
+          await connection.setTransport('/epoxy/index.mjs', [{ wisp: chosenServer }]);
+          console.log(`UV Transport initialized: wisp -> ${chosenServer}`);
         } else {
-          await connection.setTransport('/bare/index.mjs', [url]);
+          await connection.setTransport('/bare/index.mjs', [userUrl]);
+          console.log(`UV Transport initialized: bare -> ${userUrl}`);
         }
 
-        console.log(`UV Transport initialized: ${type} -> ${url}`);
         setSwRegistered(true);
       } catch (err) {
         console.error('UV setup failed:', err);
