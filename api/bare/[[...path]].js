@@ -1,7 +1,7 @@
 // Bare Server v3 implementation as Vercel Serverless Function
 // Handles HTTP proxy requests without WebSocket (works when Wisp/WebSocket is blocked)
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // CORS headers for all responses
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
@@ -14,10 +14,13 @@ export default async function handler(req, res) {
     return;
   }
 
-  const url = req.url.replace(/^\/api\/bare\/?/, '');
+  // Parse the path after /api/bare/
+  const fullUrl = req.url || '';
+  const pathMatch = fullUrl.match(/\/api\/bare\/(.*)/);
+  const subPath = pathMatch ? pathMatch[1] : '';
 
   // Root: return server info
-  if (!url || url === '/') {
+  if (!subPath || subPath === '/' || subPath === '') {
     res.status(200).json({
       versions: ['v3'],
       language: 'NodeJS',
@@ -30,7 +33,7 @@ export default async function handler(req, res) {
   }
 
   // v3 endpoint
-  if (url.startsWith('v3/') || url === 'v3') {
+  if (subPath.startsWith('v3')) {
     try {
       const bareHost = req.headers['x-bare-host'];
       const barePort = req.headers['x-bare-port'] || '';
@@ -48,14 +51,14 @@ export default async function handler(req, res) {
       const port = barePort && barePort !== '443' && barePort !== '80' ? `:${barePort}` : '';
       const targetUrl = `${bareProtocol}//${bareHost}${port}${barePath}`;
 
-      // Parse headers
+      // Parse headers to forward
       let bareHeaders = {};
       try { bareHeaders = JSON.parse(bareHeadersRaw); } catch(e) {}
       
       let forwardHeaders = [];
       try { forwardHeaders = JSON.parse(bareForwardHeadersRaw); } catch(e) {}
 
-      // Forward specified headers from the request
+      // Build fetch headers
       const fetchHeaders = { ...bareHeaders };
       for (const header of forwardHeaders) {
         const lower = header.toLowerCase();
@@ -64,23 +67,29 @@ export default async function handler(req, res) {
         }
       }
 
-      // Remove problematic headers
+      // Remove host header (will be set by fetch)
       delete fetchHeaders['host'];
       delete fetchHeaders['Host'];
 
-      // Fetch the target
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000);
+      // Collect request body for non-GET requests
+      let body = undefined;
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        const chunks = [];
+        for await (const chunk of req) {
+          chunks.push(chunk);
+        }
+        if (chunks.length > 0) {
+          body = Buffer.concat(chunks);
+        }
+      }
 
+      // Fetch the target URL
       const response = await fetch(targetUrl, {
-        method: req.method === 'POST' ? (fetchHeaders['x-bare-method'] || req.method) : req.method,
+        method: req.method,
         headers: fetchHeaders,
-        body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
+        body: body,
         redirect: 'manual',
-        signal: controller.signal,
       });
-
-      clearTimeout(timeout);
 
       // Collect response headers
       const responseHeaders = {};
@@ -92,30 +101,12 @@ export default async function handler(req, res) {
       res.setHeader('X-Bare-Status', response.status.toString());
       res.setHeader('X-Bare-Status-Text', response.statusText || '');
       res.setHeader('X-Bare-Headers', JSON.stringify(responseHeaders));
-      res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
 
-      // Stream the body
-      res.status(200);
+      // Stream the response body
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
       
-      if (response.body) {
-        const reader = response.body.getReader();
-        const chunks = [];
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-        }
-        const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-        const result = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const chunk of chunks) {
-          result.set(chunk, offset);
-          offset += chunk.length;
-        }
-        res.end(Buffer.from(result));
-      } else {
-        res.end();
-      }
+      res.status(200).end(buffer);
     } catch (err) {
       console.error('Bare proxy error:', err);
       res.status(500).json({ error: err.message || 'Proxy error' });
@@ -124,4 +115,4 @@ export default async function handler(req, res) {
   }
 
   res.status(404).json({ error: 'Not found' });
-}
+};
