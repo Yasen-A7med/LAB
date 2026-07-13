@@ -94,21 +94,27 @@ const App: React.FC = () => {
             });
           };
 
-          let chosenServer = servers[0];
+          let foundWisp = false;
           for (const server of servers) {
             console.log(`UV Testing wisp server: ${server}...`);
             const ok = await testWisp(server);
             if (ok) {
-              chosenServer = server;
-              console.log(`UV Wisp server OK: ${server}`);
+              await connection.setTransport('/epoxy/index.mjs', [{ wisp: server }]);
+              console.log(`UV Transport initialized: wisp -> ${server}`);
+              foundWisp = true;
               break;
             } else {
               console.warn(`UV Wisp server FAILED: ${server}, trying next...`);
             }
           }
 
-          await connection.setTransport('/epoxy/index.mjs', [{ wisp: chosenServer }]);
-          console.log(`UV Transport initialized: wisp -> ${chosenServer}`);
+          // If ALL Wisp servers failed (WebSocket blocked), fall back to local Bare server
+          if (!foundWisp) {
+            const bareUrl = `${window.location.origin}/api/bare/`;
+            console.log(`UV All Wisp servers failed! Falling back to Bare: ${bareUrl}`);
+            await connection.setTransport('/bare/index.mjs', [bareUrl]);
+            console.log(`UV Transport initialized: bare -> ${bareUrl}`);
+          }
         } else {
           await connection.setTransport('/bare/index.mjs', [userUrl]);
           console.log(`UV Transport initialized: bare -> ${userUrl}`);
