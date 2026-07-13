@@ -138,7 +138,7 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => selectPreset('wisp', 'wss://anura.pro/wisp/')}
+                  onClick={() => selectPreset('wisp', 'wss://nebulaproxy.io/wisp/')}
                   className={`py-3 px-4 rounded-xl border font-bold transition-all ${
                     localType === 'wisp'
                       ? 'bg-[#00f2ff]/10 border-[#00f2ff] text-[#00f2ff]'
@@ -168,6 +168,17 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
                   <>
                     <button
                       type="button"
+                      onClick={() => setLocalUrl('wss://nebulaproxy.io/wisp/')}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        localUrl === 'wss://nebulaproxy.io/wisp/'
+                          ? 'bg-[#00f2ff]/10 border-[#00f2ff]/30 text-[#00f2ff]'
+                          : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
+                      }`}
+                    >
+                      Nebula (Recommended)
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setLocalUrl('wss://anura.pro/wisp/')}
                       className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                         localUrl === 'wss://anura.pro/wisp/'
@@ -175,7 +186,7 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
                           : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'
                       }`}
                     >
-                      Anura (Recommended)
+                      Anura
                     </button>
                     <button
                       type="button"

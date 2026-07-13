@@ -14,7 +14,7 @@ const App: React.FC = () => {
     return (localStorage.getItem('ultraproxy_transport_type') as 'wisp' | 'bare') || 'wisp';
   });
   const [serverUrl, setServerUrl] = useState<string>(() => {
-    return localStorage.getItem('ultraproxy_server_url') || 'wss://anura.pro/wisp/';
+    return localStorage.getItem('ultraproxy_server_url') || 'wss://nebulaproxy.io/wisp/';
   });
 
   useEffect(() => {
@@ -58,7 +58,7 @@ const App: React.FC = () => {
         const connection = new BareMuxConnection('/baremux/worker.js');
         
         const type = localStorage.getItem('ultraproxy_transport_type') || 'wisp';
-        const url = localStorage.getItem('ultraproxy_server_url') || 'wss://anura.pro/wisp/';
+        const url = localStorage.getItem('ultraproxy_server_url') || 'wss://nebulaproxy.io/wisp/';
 
         if (type === 'wisp') {
           await connection.setTransport('/epoxy/index.mjs', [{ wisp: url }]);
