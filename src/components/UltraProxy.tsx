@@ -248,6 +248,25 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
                 <span>Save Config</span>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirm('This will clear all saved settings and reload the page. Continue?')) return;
+                localStorage.clear();
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (const r of regs) await r.unregister();
+                if ('caches' in window) {
+                  const keys = await caches.keys();
+                  for (const k of keys) await caches.delete(k);
+                }
+                window.location.reload();
+              }}
+              className="w-full py-3 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:scale-95 text-red-400 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              <AlertTriangle size={16} />
+              <span>Reset All Data</span>
+            </button>
           </form>
         </div>
       </div>
