@@ -8,5 +8,10 @@
       "source": "/((?!api/|uv/|epoxy/|baremux/|bare/|assets/).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "@vercel/node@3"
+    }
+  }
 }
