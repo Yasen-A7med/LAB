@@ -1,4 +1,6 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/uv/service/(.*)",
@@ -8,10 +10,5 @@
       "source": "/((?!api/|uv/|epoxy/|baremux/|bare/|assets/).*)",
       "destination": "/index.html"
     }
-  ],
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "@vercel/node@3"
-    }
-  }
+  ]
 }
