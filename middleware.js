@@ -65,6 +65,7 @@ export default async function middleware(request) {
         if (val) fetchHeaders.set(header, val);
       }
       fetchHeaders.delete('host');
+      fetchHeaders.delete('accept-encoding');
 
       const body = (request.method !== 'GET' && request.method !== 'HEAD')
         ? await request.arrayBuffer()
@@ -79,6 +80,9 @@ export default async function middleware(request) {
 
       const responseHeaders = {};
       response.headers.forEach((value, key) => {
+        // Edge Runtime auto-decompresses, so remove stale encoding/length headers
+        const lower = key.toLowerCase();
+        if (lower === 'content-encoding' || lower === 'content-length' || lower === 'transfer-encoding') return;
         responseHeaders[key] = value;
       });
 
