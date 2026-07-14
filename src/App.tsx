@@ -61,59 +61,78 @@ const App: React.FC = () => {
         const userUrl = localStorage.getItem('ultraproxy_server_url') || 'wss://nebulaproxy.io/wisp/';
 
         if (type === 'wisp') {
-          // Wisp servers to try in order (user's choice first, then fallbacks)
-          const FALLBACK_WISPS = [
-            'wss://nebulaproxy.io/wisp/',
-            'wss://anura.pro/wisp/',
-            'wss://wisp.mercurywork.shop/',
-            'wss://wisp.incognito.surf/',
-          ];
-          const servers = [userUrl, ...FALLBACK_WISPS.filter(s => s !== userUrl)];
+          // Check if we previously determined that Wisp doesn't work on this device
+          const lastWorkingTransport = localStorage.getItem('ultraproxy_last_working_transport');
           
-          // Test WebSocket connectivity before using a server
-          const testWisp = (url: string, timeoutMs = 5000): Promise<boolean> => {
-            return new Promise((resolve) => {
-              try {
-                const ws = new WebSocket(url);
-                const timer = setTimeout(() => { 
-                  try { ws.close(); } catch(e) {}
-                  resolve(false); 
-                }, timeoutMs);
-                ws.onopen = () => { 
-                  clearTimeout(timer); 
-                  ws.close(); 
-                  resolve(true); 
-                };
-                ws.onerror = () => { 
-                  clearTimeout(timer); 
-                  resolve(false); 
-                };
-              } catch(e) {
-                resolve(false);
-              }
-            });
-          };
-
-          let foundWisp = false;
-          for (const server of servers) {
-            console.log(`UV Testing wisp server: ${server}...`);
-            const ok = await testWisp(server);
-            if (ok) {
-              await connection.setTransport('/epoxy/index.mjs', [{ wisp: server }]);
-              console.log(`UV Transport initialized: wisp -> ${server}`);
-              foundWisp = true;
-              break;
-            } else {
-              console.warn(`UV Wisp server FAILED: ${server}, trying next...`);
-            }
-          }
-
-          // If ALL Wisp servers failed (WebSocket blocked), fall back to local Bare server
-          if (!foundWisp) {
+          if (lastWorkingTransport === 'bare') {
+            // Previous session found that WebSocket is blocked — go straight to Bare
             const bareUrl = `${window.location.origin}/api/bare/`;
-            console.log(`UV All Wisp servers failed! Falling back to Bare: ${bareUrl}`);
+            console.log(`UV Using cached Bare transport (WebSocket previously blocked): ${bareUrl}`);
             await connection.setTransport('/bare/index.mjs', [bareUrl]);
             console.log(`UV Transport initialized: bare -> ${bareUrl}`);
+          } else {
+            // Wisp servers to try in order (user's choice first, then fallbacks)
+            const FALLBACK_WISPS = [
+              'wss://nebulaproxy.io/wisp/',
+              'wss://anura.pro/wisp/',
+              'wss://wisp.mercurywork.shop/',
+              'wss://wisp.incognito.surf/',
+            ];
+            const servers = [userUrl, ...FALLBACK_WISPS.filter(s => s !== userUrl)];
+            
+            // Test WebSocket connectivity with shorter timeout
+            const testWisp = (url: string, timeoutMs = 3000): Promise<boolean> => {
+              return new Promise((resolve) => {
+                try {
+                  const ws = new WebSocket(url);
+                  const timer = setTimeout(() => { 
+                    try { ws.close(); } catch(e) {}
+                    resolve(false); 
+                  }, timeoutMs);
+                  ws.onopen = () => { 
+                    clearTimeout(timer); 
+                    ws.close(); 
+                    resolve(true); 
+                  };
+                  ws.onerror = () => { 
+                    clearTimeout(timer); 
+                    try { ws.close(); } catch(e) {}
+                    resolve(false); 
+                  };
+                  ws.onclose = () => {
+                    clearTimeout(timer);
+                    resolve(false);
+                  };
+                } catch(e) {
+                  resolve(false);
+                }
+              });
+            };
+
+            let foundWisp = false;
+            for (const server of servers) {
+              console.log(`UV Testing wisp server: ${server}...`);
+              const ok = await testWisp(server);
+              if (ok) {
+                await connection.setTransport('/epoxy/index.mjs', [{ wisp: server }]);
+                console.log(`UV Transport initialized: wisp -> ${server}`);
+                localStorage.setItem('ultraproxy_last_working_transport', 'wisp');
+                foundWisp = true;
+                break;
+              } else {
+                console.warn(`UV Wisp server FAILED: ${server}, trying next...`);
+              }
+            }
+
+            // If ALL Wisp servers failed (WebSocket blocked), fall back to local Bare server
+            if (!foundWisp) {
+              const bareUrl = `${window.location.origin}/api/bare/`;
+              console.log(`UV All Wisp servers failed! Falling back to Bare: ${bareUrl}`);
+              await connection.setTransport('/bare/index.mjs', [bareUrl]);
+              console.log(`UV Transport initialized: bare -> ${bareUrl}`);
+              // Remember this for next time
+              localStorage.setItem('ultraproxy_last_working_transport', 'bare');
+            }
           }
         } else {
           await connection.setTransport('/bare/index.mjs', [userUrl]);

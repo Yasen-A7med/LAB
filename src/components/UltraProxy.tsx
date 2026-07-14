@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Search, Globe, Shield, Zap, X, AlertTriangle, ArrowLeft, Settings, Check } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Globe, Shield, Zap, X, AlertTriangle, ArrowLeft, Settings, Check, Bug, Copy, CheckCircle } from 'lucide-react';
 
 interface UltraProxyProps {
   onBack: () => void;
@@ -38,6 +38,136 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Debug panel state
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<{time: string, type: string, msg: string}[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  // Capture console logs related to UV/proxy
+  useEffect(() => {
+    const origLog = console.log;
+    const origWarn = console.warn;
+    const origError = console.error;
+    const addLog = (type: string, args: any[]) => {
+      const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+      if (msg.includes('UV ') || msg.includes('Transport') || msg.includes('Bare') || msg.includes('bare') || msg.includes('wisp') || msg.includes('Wisp') || msg.includes('bare-mux') || msg.includes('setup') || msg.includes('WebSocket')) {
+        setDebugLogs(prev => [...prev.slice(-100), { time: new Date().toLocaleTimeString(), type, msg }]);
+      }
+    };
+    console.log = (...args: any[]) => { origLog(...args); addLog('log', args); };
+    console.warn = (...args: any[]) => { origWarn(...args); addLog('warn', args); };
+    console.error = (...args: any[]) => { origError(...args); addLog('error', args); };
+    return () => { console.log = origLog; console.warn = origWarn; console.error = origError; };
+  }, []);
+
+  const getDebugInfo = () => {
+    const info = {
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      transport: {
+        currentType: transportType,
+        currentUrl: serverUrl,
+        lastWorking: localStorage.getItem('ultraproxy_last_working_transport') || 'not set',
+        savedType: localStorage.getItem('ultraproxy_transport_type') || 'not set',
+        savedUrl: localStorage.getItem('ultraproxy_server_url') || 'not set',
+      },
+      serviceWorker: {
+        supported: 'serviceWorker' in navigator,
+        controller: navigator.serviceWorker?.controller ? 'active' : 'none',
+      },
+      logs: debugLogs,
+    };
+    return JSON.stringify(info, null, 2);
+  };
+
+  const copyDebugInfo = () => {
+    navigator.clipboard.writeText(getDebugInfo()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const renderDebugPanel = () => {
+    if (!showDebug) return null;
+    return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div className="w-full max-w-lg max-h-[80vh] bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 shadow-2xl relative text-white flex flex-col">
+          <button
+            onClick={() => setShowDebug(false)}
+            className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+
+          <h3 className="text-xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center gap-2">
+            <Bug size={20} /> Diagnostics
+          </h3>
+
+          {/* Status Cards */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-white/5 rounded-xl p-3">
+              <div className="text-[10px] text-gray-500 uppercase font-bold">Transport</div>
+              <div className={`text-sm font-bold ${transportType === 'wisp' ? 'text-cyan-400' : 'text-purple-400'}`}>
+                {transportType.toUpperCase()}
+              </div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-3">
+              <div className="text-[10px] text-gray-500 uppercase font-bold">Last Working</div>
+              <div className="text-sm font-bold text-green-400">
+                {localStorage.getItem('ultraproxy_last_working_transport') || '—'}
+              </div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-3 col-span-2">
+              <div className="text-[10px] text-gray-500 uppercase font-bold">Server URL</div>
+              <div className="text-xs font-mono text-gray-300 break-all">{serverUrl}</div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-3">
+              <div className="text-[10px] text-gray-500 uppercase font-bold">Service Worker</div>
+              <div className="text-sm font-bold">
+                {navigator.serviceWorker?.controller
+                  ? <span className="text-green-400">Active ✓</span>
+                  : <span className="text-red-400">Inactive ✗</span>}
+              </div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-3">
+              <div className="text-[10px] text-gray-500 uppercase font-bold">WebSocket</div>
+              <div className="text-sm font-bold">
+                {'WebSocket' in window
+                  ? <span className="text-green-400">Supported</span>
+                  : <span className="text-red-400">Blocked</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Logs */}
+          <div className="text-xs font-bold text-gray-500 uppercase mb-2">Connection Logs</div>
+          <div className="flex-1 overflow-y-auto bg-black/50 rounded-xl p-3 mb-4 font-mono text-[11px] space-y-1 min-h-[120px] max-h-[200px]">
+            {debugLogs.length === 0 ? (
+              <div className="text-gray-600 italic">No logs yet. Reload the page to see connection diagnostics.</div>
+            ) : (
+              debugLogs.map((log, i) => (
+                <div key={i} className={`${
+                  log.type === 'error' ? 'text-red-400' :
+                  log.type === 'warn' ? 'text-yellow-400' : 'text-gray-300'
+                }`}>
+                  <span className="text-gray-600">[{log.time}]</span> {log.msg}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Copy Button */}
+          <button
+            onClick={copyDebugInfo}
+            className="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:brightness-110 active:scale-95 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-black"
+          >
+            {copied ? <><CheckCircle size={16} /> Copied!</> : <><Copy size={16} /> Copy Full Debug Info</>}
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,6 +415,13 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setShowDebug(true)}
+                className="p-2 hover:bg-yellow-500/10 rounded-full transition-colors text-gray-400 hover:text-yellow-400"
+                title="Diagnostics"
+              >
+                <Bug size={20} />
+              </button>
+              <button
                 onClick={() => setShowSettings(true)}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
                 title="Proxy Settings"
@@ -308,6 +445,7 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
           />
         </div>
         {renderSettingsModal()}
+        {renderDebugPanel()}
       </>
     );
   }
@@ -329,8 +467,15 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
         </button>
       </div>
 
-      {/* Settings Button */}
-      <div className="absolute top-6 right-6 z-20">
+      {/* Settings & Debug Buttons */}
+      <div className="absolute top-6 right-6 z-20 flex gap-2">
+        <button
+          onClick={() => setShowDebug(true)}
+          className="flex items-center justify-center w-10 h-10 bg-[#0a0a0a] hover:bg-yellow-500/10 border border-white/10 rounded-xl text-gray-400 hover:text-yellow-400 transition-all duration-200"
+          title="Diagnostics"
+        >
+          <Bug size={20} />
+        </button>
         <button
           onClick={() => setShowSettings(true)}
           className="flex items-center justify-center w-10 h-10 bg-[#0a0a0a] hover:bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white transition-all duration-200"
@@ -413,8 +558,9 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
         </div>
       </main>
 
-      {/* Settings Modal overlay inside UltraProxy */}
+      {/* Settings & Debug Modal overlays */}
       {renderSettingsModal()}
+      {renderDebugPanel()}
     </div>
   );
 };

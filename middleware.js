@@ -113,7 +113,7 @@ export default async function middleware(request) {
         method: request.method,
         headers: fetchHeaders,
         body,
-        redirect: 'manual',
+        redirect: 'follow',
       });
 
       const responseHeaders = {};
