@@ -43,6 +43,28 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
   const [showDebug, setShowDebug] = useState(false);
   const [debugLogs, setDebugLogs] = useState<{time: string, type: string, msg: string}[]>([]);
   const [copied, setCopied] = useState(false);
+  const [swStatus, setSwStatus] = useState<string>('checking...');
+
+  // Check actual SW registration status
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) {
+      setSwStatus('Not supported');
+      return;
+    }
+    const checkSW = async () => {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      const uvReg = regs.find(r => r.scope.includes('/uv/service'));
+      if (uvReg) {
+        const sw = uvReg.active || uvReg.installing || uvReg.waiting;
+        setSwStatus(sw ? `${sw.state} ✓` : 'Registered (no worker)');
+      } else {
+        setSwStatus('Not registered ✗');
+      }
+    };
+    checkSW();
+    const interval = setInterval(checkSW, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Capture console logs related to UV/proxy
   useEffect(() => {
@@ -107,9 +129,9 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
           {/* Status Cards */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="bg-white/5 rounded-xl p-3">
-              <div className="text-[10px] text-gray-500 uppercase font-bold">Transport</div>
-              <div className={`text-sm font-bold ${transportType === 'wisp' ? 'text-cyan-400' : 'text-purple-400'}`}>
-                {transportType.toUpperCase()}
+              <div className="text-[10px] text-gray-500 uppercase font-bold">Active Transport</div>
+              <div className={`text-sm font-bold ${(localStorage.getItem('ultraproxy_last_working_transport') || transportType) === 'bare' ? 'text-purple-400' : 'text-cyan-400'}`}>
+                {(localStorage.getItem('ultraproxy_last_working_transport') || transportType).toUpperCase()}
               </div>
             </div>
             <div className="bg-white/5 rounded-xl p-3">
@@ -124,10 +146,8 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
             </div>
             <div className="bg-white/5 rounded-xl p-3">
               <div className="text-[10px] text-gray-500 uppercase font-bold">Service Worker</div>
-              <div className="text-sm font-bold">
-                {navigator.serviceWorker?.controller
-                  ? <span className="text-green-400">Active ✓</span>
-                  : <span className="text-red-400">Inactive ✗</span>}
+              <div className={`text-sm font-bold ${swStatus.includes('✓') || swStatus.includes('activated') ? 'text-green-400' : 'text-red-400'}`}>
+                {swStatus}
               </div>
             </div>
             <div className="bg-white/5 rounded-xl p-3">

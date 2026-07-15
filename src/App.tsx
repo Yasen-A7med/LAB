@@ -70,6 +70,8 @@ const App: React.FC = () => {
             console.log(`UV Using cached Bare transport (WebSocket previously blocked): ${bareUrl}`);
             await connection.setTransport('/bare/index.mjs', [bareUrl]);
             console.log(`UV Transport initialized: bare -> ${bareUrl}`);
+            setTransportType('bare');
+            setServerUrl(bareUrl);
           } else {
             // Wisp servers to try in order (user's choice first, then fallbacks)
             const FALLBACK_WISPS = [
@@ -130,6 +132,8 @@ const App: React.FC = () => {
               console.log(`UV All Wisp servers failed! Falling back to Bare: ${bareUrl}`);
               await connection.setTransport('/bare/index.mjs', [bareUrl]);
               console.log(`UV Transport initialized: bare -> ${bareUrl}`);
+              setTransportType('bare');
+              setServerUrl(bareUrl);
               // Remember this for next time
               localStorage.setItem('ultraproxy_last_working_transport', 'bare');
             }
