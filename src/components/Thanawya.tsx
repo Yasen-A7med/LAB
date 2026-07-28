@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { 
   ArrowRight, Search, X, ChevronLeft, ChevronRight, 
-  GraduationCap, Loader2, Copy, Share2, Check, SlidersHorizontal, AlertCircle, Sparkles
+  GraduationCap, Loader2, Copy, Share2, Check, SlidersHorizontal, AlertCircle, Sparkles, Filter
 } from 'lucide-react';
 import type { Record4, SearchOptions } from '../workers/thanawyaWorker';
 
@@ -20,6 +20,26 @@ const PER_PAGE = 20;
 // Spring physics config per Design Skill directive
 const SPRING_TRANSITION: Transition = { type: "spring", stiffness: 380, damping: 32 };
 
+// Normalization for in-result sub-filter
+const ARABIC_NORM_MAP: Record<string, string> = {
+  'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا',
+  'ى': 'ي', 'ئ': 'ي',
+  'ة': 'ه',
+  'ؤ': 'و',
+  'ٍ': '', 'ٌ': '', 'ً': '', 'َ': '', 'ُ': '', 'ِ': '', 'ّ': '', 'ْ': '',
+  'ـ': ''
+};
+
+function normalizeText(str: string): string {
+  if (!str) return '';
+  let res = '';
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    res += ch in ARABIC_NORM_MAP ? ARABIC_NORM_MAP[ch] : ch;
+  }
+  return res.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
   // Worker & Progress State
   const workerRef = useRef<Worker | null>(null);
@@ -34,6 +54,9 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'rel' | 'score_desc' | 'score_asc' | 'seat_asc' | 'name_asc'>('rel');
   const [showOptions, setShowOptions] = useState(false);
+
+  // In-Result Sub-Filter State
+  const [subFilterText, setSubFilterText] = useState('');
 
   // Results State
   const [searching, setSearching] = useState(false);
@@ -120,6 +143,23 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
     };
   }, [query, statusFilter, sortBy, isReady, dispatchSearch]);
 
+  // Instant In-Result Sub-Filter Memo
+  const displayedResults = useMemo(() => {
+    if (!subFilterText.trim()) return results;
+    const tokens = normalizeText(subFilterText).split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return results;
+
+    return results.filter(({ rec }) => {
+      const seat = rec[0];
+      const name = normalizeText(rec[1]);
+      const caseName = normalizeText(casesList[rec[3]] || '');
+      const degreeStr = rec[2];
+      const combined = `${name} ${seat} ${caseName} ${degreeStr}`;
+
+      return tokens.every(t => combined.includes(t));
+    });
+  }, [results, subFilterText, casesList]);
+
   // Copy result text
   const handleCopyResult = (rec: Record4) => {
     const seat = rec[0];
@@ -204,7 +244,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 max-w-3xl mx-auto px-4 pt-8 pb-16 space-y-6">
+      <main className="relative z-10 max-w-3xl mx-auto px-4 pt-6 pb-16 space-y-5">
 
         {/* Loading Progress State (Zeigarnik Effect with Framer Motion) */}
         <AnimatePresence mode="wait">
@@ -215,7 +255,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={SPRING_TRANSITION}
-              className="bg-[#0b0b14]/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 text-center space-y-5 shadow-2xl relative overflow-hidden"
+              className="bg-[#0b0b14]/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-2xl relative overflow-hidden"
             >
               {/* Radial Top Glow */}
               <div className="pointer-events-none absolute -top-4 left-[10%] right-[10%] h-8 blur-[16px] bg-[radial-gradient(ellipse_80%_100%_at_50%_0%,rgba(99,102,241,0.5)_0%,transparent_70%)]" />
@@ -253,19 +293,21 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
 
         {/* Interactive Search UI */}
         {isReady && (
-          <div className="space-y-6">
+          <div className="space-y-4">
 
-            {/* Main Search Field */}
-            <div className="relative flex items-center bg-[#0b0b14] border border-white/10 rounded-2xl p-2 shadow-xl focus-within:border-indigo-500/60 focus-within:shadow-[0_0_24px_rgba(99,102,241,0.2)] transition-all">
-              <div className="flex-1 flex items-center gap-3 px-3">
-                <Search size={20} className="text-indigo-400 shrink-0" />
+            {/* Mobile-Optimized Search Card Layout */}
+            <div className="bg-[#0b0b14] border border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-xl space-y-3 focus-within:border-indigo-500/60 focus-within:shadow-[0_0_24px_rgba(99,102,241,0.2)] transition-all">
+              
+              {/* Row 1: Full-Width Search Input (prevents clipping on mobile!) */}
+              <div className="flex items-center gap-3 bg-white/[0.03] border border-white/5 rounded-xl px-3.5 py-1">
+                <Search size={22} className="text-indigo-400 shrink-0" />
                 <input
                   ref={inputRef}
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="اكتب الاسم أو رقم الجلوس..."
-                  className="w-full bg-transparent border-none outline-none text-white text-base py-2.5 placeholder:text-gray-500"
+                  className="w-full bg-transparent border-none outline-none text-white text-base py-3 placeholder:text-gray-500 leading-normal"
                   autoComplete="off"
                   spellCheck={false}
                 />
@@ -276,44 +318,48 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                       setQuery('');
                       inputRef.current?.focus();
                     }}
-                    className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    className="p-2 rounded-lg bg-white/10 text-gray-400 hover:text-white min-w-[38px] min-h-[38px] flex items-center justify-center shrink-0"
+                    title="مسح النص"
                   >
-                    <X size={16} />
+                    <X size={18} />
                   </motion.button>
                 )}
               </div>
 
-              {/* Options Toggle */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowOptions(!showOptions)}
-                className={`p-3 rounded-xl border text-sm transition-all ml-1 min-w-[44px] min-h-[44px] flex items-center justify-center ${
-                  showOptions || statusFilter !== 'all' || sortBy !== 'rel'
-                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/30'
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                }`}
-                title="خيارات إضافية"
-              >
-                <SlidersHorizontal size={18} />
-              </motion.button>
+              {/* Row 2: Action Buttons */}
+              <div className="flex items-center gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => dispatchSearch({ page: 1 })}
+                  disabled={searching}
+                  className="flex-1 py-3 px-6 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 hover:brightness-110 text-white font-extrabold text-sm rounded-xl transition-all disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-2 shadow-md shadow-indigo-500/20"
+                >
+                  {searching ? <Loader2 size={18} className="animate-spin" /> : <span>بحث في النتائج</span>}
+                </motion.button>
 
-              {/* Search Button */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => dispatchSearch({ page: 1 })}
-                disabled={searching}
-                className="px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 hover:brightness-110 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-2"
-              >
-                {searching ? <Loader2 size={18} className="animate-spin" /> : <span>بحث</span>}
-              </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowOptions(!showOptions)}
+                  className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all min-h-[44px] flex items-center gap-2 shrink-0 ${
+                    showOptions || statusFilter !== 'all' || sortBy !== 'rel'
+                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/30'
+                      : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                  }`}
+                  title="خيارات إضافية"
+                >
+                  <SlidersHorizontal size={18} />
+                  <span className="text-xs">الترتيب</span>
+                </motion.button>
+              </div>
+
             </div>
 
             {/* Quick Status Chips */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-3.5 py-2 rounded-xl border font-semibold shrink-0 transition-all min-h-[36px] ${
+                className={`px-4 py-2 rounded-xl border font-semibold shrink-0 transition-all min-h-[38px] ${
                   statusFilter === 'all'
                     ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm shadow-indigo-500/30'
                     : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
@@ -325,7 +371,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                 <button
                   key={i}
                   onClick={() => setStatusFilter(c)}
-                  className={`px-3.5 py-2 rounded-xl border font-semibold shrink-0 transition-all min-h-[36px] ${
+                  className={`px-4 py-2 rounded-xl border font-semibold shrink-0 transition-all min-h-[38px] ${
                     statusFilter === c
                       ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm shadow-indigo-500/30'
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
@@ -351,7 +397,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value as any)}
-                      className="bg-[#141424] border border-white/10 rounded-lg px-3 py-1.5 text-white font-semibold outline-none focus:border-indigo-500"
+                      className="bg-[#141424] border border-white/10 rounded-lg px-3 py-2 text-white font-semibold outline-none focus:border-indigo-500 text-xs"
                     >
                       <option value="rel">الأكثر صلة وتطابقاً</option>
                       <option value="score_desc">الأعلى مجموعاً</option>
@@ -364,17 +410,43 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
               )}
             </AnimatePresence>
 
-            {/* Results Grid */}
+            {/* Results Grid & In-Result Sub-Filter */}
             {searched && (
               <div className="space-y-4 pt-2">
                 
-                {/* Result Count Header */}
-                <div className="text-xs text-gray-400 font-semibold flex items-center justify-between px-1">
-                  <span>تم العثور على <strong className="text-indigo-400 font-extrabold">{totalMatches.toLocaleString('ar-EG')}</strong> نتيجة</span>
+                {/* Result Bar & Instant In-Result Sub-Filter */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0b0b14] border border-white/10 rounded-2xl p-3">
+                  <div className="text-xs text-gray-400 font-semibold">
+                    تم العثور على <strong className="text-indigo-400 font-extrabold text-sm">{totalMatches.toLocaleString('ar-EG')}</strong> نتيجة
+                  </div>
+
+                  {/* Instant In-Result Sub-Filter Input */}
+                  {results.length > 1 && (
+                    <div className="flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-1.5 flex-1 max-w-full sm:max-w-[280px]">
+                      <Filter size={14} className="text-indigo-400 shrink-0" />
+                      <input
+                        type="text"
+                        value={subFilterText}
+                        onChange={(e) => setSubFilterText(e.target.value)}
+                        placeholder="فلترة سريعة داخل النتائج..."
+                        className="w-full bg-transparent border-none outline-none text-white text-xs py-1 placeholder:text-gray-500"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      {subFilterText && (
+                        <button
+                          onClick={() => setSubFilterText('')}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Cards List with Framer Motion spring physics */}
-                {results.length > 0 ? (
+                {displayedResults.length > 0 ? (
                   <>
                     <motion.div 
                       className="grid grid-cols-1 md:grid-cols-2 gap-3"
@@ -384,7 +456,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                         visible: { transition: { staggerChildren: 0.04 } }
                       }}
                     >
-                      {results.map(({ rec }, i) => {
+                      {displayedResults.map(({ rec }, i) => {
                         const seat = rec[0];
                         const name = rec[1];
                         const scoreStr = rec[2];
@@ -412,7 +484,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                                 <motion.button
                                   whileTap={{ scale: 0.85 }}
                                   onClick={() => handleCopyResult(rec)}
-                                  className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                                  className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-colors min-w-[38px] min-h-[38px] flex items-center justify-center"
                                   title="نسخ النتيجة"
                                 >
                                   {copiedId === seat ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
@@ -420,7 +492,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                                 <motion.button
                                   whileTap={{ scale: 0.85 }}
                                   onClick={() => handleShareResult(rec)}
-                                  className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-emerald-400 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                                  className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-emerald-400 transition-colors min-w-[38px] min-h-[38px] flex items-center justify-center"
                                   title="واتساب"
                                 >
                                   <Share2 size={15} />
