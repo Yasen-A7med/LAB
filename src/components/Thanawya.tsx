@@ -156,7 +156,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
     const name = rec[1];
     const score = rec[2];
     const caseName = casesList[rec[3]] || '';
-    const perc = !isNaN(parseFloat(score)) ? ((parseFloat(score) / 410) * 100).toFixed(1) + '%' : '';
+    const perc = !isNaN(parseFloat(score)) ? ((parseFloat(score) / 320) * 100).toFixed(1) + '%' : '';
 
     const text = `🎓 نتيجة الطالب: ${name}\n🔢 رقم الجلوس: ${seat}\n📊 المجموع: ${score} (${perc})\n📌 الحالة: ${caseName}`;
 
@@ -171,7 +171,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
     const name = rec[1];
     const score = rec[2];
     const caseName = casesList[rec[3]] || '';
-    const perc = !isNaN(parseFloat(score)) ? ((parseFloat(score) / 410) * 100).toFixed(1) + '%' : '';
+    const perc = !isNaN(parseFloat(score)) ? ((parseFloat(score) / 320) * 100).toFixed(1) + '%' : '';
 
     const text = `🎓 نتيجة الثانوية العامة 2026\n👤 ${name}\n🔢 رقم الجلوس: ${seat}\n📊 المجموع: ${score} (${perc})\n📌 الحالة: ${caseName}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
@@ -454,7 +454,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                         const caseName = casesList[rec[3]] || '';
                         const badgeStyle = getStatusBadgeStyle(caseName);
                         const scoreNum = parseFloat(scoreStr);
-                        const perc = !isNaN(scoreNum) ? ((scoreNum / 410) * 100).toFixed(1) : null;
+                        const perc = !isNaN(scoreNum) ? ((scoreNum / 320) * 100).toFixed(1) : null;
 
                         return (
                           <motion.div
