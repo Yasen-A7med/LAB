@@ -8,7 +8,7 @@
   font-weight: 400;
   color-scheme: dark;
   color: rgba(255, 255, 255, 0.95);
-  background-color: #030305;
+  background-color: #050508;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -31,7 +31,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
-  background-color: #030305;
+  background-color: #050508;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
@@ -42,37 +42,20 @@ body {
   width: 100%;
 }
 
-/* Custom Scrollbar */
+/* Custom Minimal Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #030305;
+  background: #050508;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Noise texture overlay */
-.noise-overlay::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0.018;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* Dot grid background pattern */
-.bg-dot-grid {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* Gradient text utility */
@@ -82,36 +65,26 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-/* Shimmer animated gradient */
-@keyframes text-shimmer {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-.animate-shimmer {
-  background-size: 200% auto;
-  animation: text-shimmer 6s linear infinite;
-}
-
-/* ──────────────── Card & Glass Styling ──────────────── */
+/* ──────────────── Minimalist Luxury Card Styling ──────────────── */
 .glow-card {
   position: relative;
-  background: rgba(10, 10, 18, 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  background: rgba(255, 255, 255, 0.018);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glow-card:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.8), 0 0 24px -6px rgba(0, 242, 255, 0.15);
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
 }
 
 /* Mobile backdrop-filter optimization */
 @media (max-width: 640px) {
   .glow-card {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 }
 
@@ -125,51 +98,37 @@ body {
   animation: pulse-ring 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* ──────────────── Optimized Liquid Blob Animations ──────────────── */
+/* ──────────────── Fluid Liquid Blob Keyframe Animations ──────────────── */
 @keyframes liquid-blob-1 {
   0%, 100% {
-    transform: translate3d(0px, 0px, 0px) scale(1) rotate(0deg);
+    transform: translate3d(0px, 0px, 0px) scale(1);
   }
   50% {
-    transform: translate3d(25px, -30px, 0px) scale(1.1) rotate(90deg);
+    transform: translate3d(20px, -20px, 0px) scale(1.08);
   }
 }
 
 @keyframes liquid-blob-2 {
   0%, 100% {
-    transform: translate3d(0px, 0px, 0px) scale(1) rotate(0deg);
-  }
-  50% {
-    transform: translate3d(-30px, -25px, 0px) scale(1.08) rotate(-90deg);
-  }
-}
-
-@keyframes liquid-blob-3 {
-  0%, 100% {
     transform: translate3d(0px, 0px, 0px) scale(1);
   }
   50% {
-    transform: translate3d(-20px, 25px, 0px) scale(1.12);
+    transform: translate3d(-20px, -15px, 0px) scale(1.05);
   }
 }
 
 .animate-liquid-blob-1 {
-  animation: liquid-blob-1 20s ease-in-out infinite;
+  animation: liquid-blob-1 22s ease-in-out infinite;
   will-change: transform;
 }
 .animate-liquid-blob-2 {
-  animation: liquid-blob-2 24s ease-in-out infinite;
-  will-change: transform;
-}
-.animate-liquid-blob-3 {
-  animation: liquid-blob-3 18s ease-in-out infinite;
+  animation: liquid-blob-2 26s ease-in-out infinite;
   will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-liquid-blob-1,
-  .animate-liquid-blob-2,
-  .animate-liquid-blob-3 {
+  .animate-liquid-blob-2 {
     animation: none !important;
   }
 }
