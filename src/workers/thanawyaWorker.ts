@@ -23,15 +23,6 @@ export interface SearchOptions {
   perPage: number;
 }
 
-export interface SearchResultPayload {
-  hitsCount: number;
-  totalMatches: number;
-  page: number;
-  totalPages: number;
-  pageIndices: number[];
-  timeMs: number;
-}
-
 // Global memory inside worker
 let RECORDS: Record4[] = [];
 let CASES: string[] = [];
@@ -47,7 +38,7 @@ const ARABIC_NORM_MAP: Record<string, string> = {
   'ؤ': 'و',
   'ٍ': '', 'ٌ': '', 'ً': '', 'َ': '', 'ُ': '', 'ِ': '', 'ّ': '', 'ْ': '',
   'ـ': '',
-  'ظ': 'ض', // Phonetic mapping for typos
+  'ظ': 'ض',
   'ذ': 'ز',
   'ث': 'س'
 };
@@ -58,7 +49,6 @@ function normalizeArabic(str: string, aggressive = false): string {
   for (let i = 0; i < str.length; i++) {
     const ch = str[i];
     if (ch in ARABIC_NORM_MAP) {
-      // For aggressive fuzzy, map phonetic typos; for normal, map common orthography
       if (!aggressive && (ch === 'ظ' || ch === 'ذ' || ch === 'ث')) {
         res += ch;
       } else {
@@ -69,7 +59,6 @@ function normalizeArabic(str: string, aggressive = false): string {
     }
   }
   
-  // Standardize spaces around common compound name prefixes (e.g., عبد الله -> عبدالله, ابو بكر -> ابوبكر)
   let cleaned = res.replace(/\s+/g, ' ').trim();
   cleaned = cleaned.replace(/عبد\s+/g, 'عبد');
   cleaned = cleaned.replace(/ابو\s+/g, 'ابو');
@@ -102,10 +91,10 @@ function editDistance(a: string, b: string): number {
         matrix[i][j] = matrix[i - 1][j - 1];
       } else {
         matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i - 1][j - 1] + 1,
           Math.min(
-            matrix[i][j - 1] + 1, // insertion
-            matrix[i - 1][j] + 1  // deletion
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
           )
         );
       }
@@ -159,34 +148,67 @@ async function saveToIDB(data: CompactData): Promise<void> {
   }
 }
 
+function sendProgress(percent: number, message: string) {
+  self.postMessage({
+    type: 'PROGRESS',
+    percent: Math.min(100, Math.max(0, percent)),
+    message
+  });
+}
+
 // Load & Index Dataset
 async function loadDataset(url: string) {
   const start = performance.now();
   
-  self.postMessage({ type: 'STATUS', message: 'جاري التحقق من التخزين المحلي المؤقت...' });
+  sendProgress(5, 'جاري فحص التخزين المحلي المؤقت...');
 
   let compact: CompactData | null = await getFromIDB();
 
-  if (!compact) {
-    self.postMessage({ type: 'STATUS', message: 'جاري تنزيل الملف المضغوط...' });
+  if (compact) {
+    sendProgress(80, 'تم استرجاع البيانات من التخزين السريع...');
+  } else {
+    sendProgress(10, 'جاري تنزيل ملف النتائج...');
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    self.postMessage({ type: 'STATUS', message: 'جاري فك الضغط والمعالجة...' });
-    const ds = new DecompressionStream('gzip');
-    const decompressed = resp.body!.pipeThrough(ds);
-    const reader = decompressed.getReader();
-    const chunks: BlobPart[] = [];
+    const contentLength = resp.headers.get('Content-Length');
+    const totalBytes = contentLength ? parseInt(contentLength, 10) : 14250000;
+    let loadedBytes = 0;
+
+    const reader = resp.body!.getReader();
+    const chunks: Uint8Array[] = [];
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
+      loadedBytes += value.byteLength;
+      
+      const pct = Math.round((loadedBytes / totalBytes) * 65) + 10; // 10% to 75%
+      sendProgress(pct, `جاري التنزيل... (${(loadedBytes / (1024 * 1024)).toFixed(1)} ميجابايت)`);
     }
-    const blob = new Blob(chunks);
-    const text = await blob.text();
 
-    self.postMessage({ type: 'STATUS', message: 'جاري تحليل واستخراج البيانات...' });
-    compact = JSON.parse(text) as CompactData;
+    sendProgress(75, 'جاري فك الضغط في الذاكرة...');
+    
+    // Combine chunks into a single Blob to decompress
+    const compressedBlob = new Blob(chunks as BlobPart[]);
+    const ds = new DecompressionStream('gzip');
+    const decompressedStream = compressedBlob.stream().pipeThrough(ds);
+    
+    const decompressedReader = decompressedStream.getReader();
+    const textChunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await decompressedReader.read();
+      if (done) break;
+      textChunks.push(value);
+    }
+
+    sendProgress(85, 'جاري تجهيز وقراءة البيانات...');
+    const textBlob = new Blob(textChunks as BlobPart[]);
+    const jsonText = await textBlob.text();
+
+    sendProgress(90, 'جاري تحليل القوائم السريعة...');
+    compact = JSON.parse(jsonText) as CompactData;
 
     // Cache asynchronously
     saveToIDB(compact).catch(() => {});
@@ -196,7 +218,7 @@ async function loadDataset(url: string) {
   RECORDS = compact.d;
   const count = RECORDS.length;
 
-  self.postMessage({ type: 'STATUS', message: 'جاري بناء كشاف البحث السريع...' });
+  sendProgress(95, 'جاري بناء كشاف البحث الذكي...');
 
   NORM_NAMES = new Array(count);
   DEGREES = new Float32Array(count);
@@ -210,6 +232,8 @@ async function loadDataset(url: string) {
 
   IS_READY = true;
   const loadTime = Math.round(performance.now() - start);
+
+  sendProgress(100, 'جاهز لخدمتك الآن!');
 
   self.postMessage({
     type: 'READY',
@@ -264,7 +288,6 @@ function handleSearch(opts: SearchOptions) {
 
     // 3. Query Matching
     if (!rawQ) {
-      // Only status/score filter applied
       matchedIndices.push({ idx: i, score: degree });
       continue;
     }
@@ -278,16 +301,13 @@ function handleSearch(opts: SearchOptions) {
         matchedIndices.push({ idx: i, score: 1000 });
       }
     } else {
-      // Text Search
       if (opts.matchMode === 'exact') {
-        // Exact name match or exact substring
         if (nameNorm === normQ) {
           matchedIndices.push({ idx: i, score: 1000 });
         } else if (nameNorm.includes(normQ)) {
           matchedIndices.push({ idx: i, score: 800 });
         }
       } else {
-        // Smart or Fuzzy match
         let tokenMatches = 0;
         let exactTokenMatches = 0;
 
@@ -296,7 +316,6 @@ function handleSearch(opts: SearchOptions) {
             tokenMatches++;
             exactTokenMatches++;
           } else if (opts.matchMode === 'fuzzy') {
-            // Check for minor edit distance in words
             const nameTokens = nameNorm.split(' ');
             for (const nt of nameTokens) {
               if (nt.length >= 3 && Math.abs(nt.length - t.length) <= 1) {
@@ -328,7 +347,6 @@ function handleSearch(opts: SearchOptions) {
   } else if (opts.sortBy === 'name_asc') {
     matchedIndices.sort((a, b) => RECORDS[a.idx][1].localeCompare(RECORDS[b.idx][1], 'ar'));
   } else {
-    // Default: Sort by Relevance Score desc, then Degree desc
     matchedIndices.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return DEGREES[b.idx] - DEGREES[a.idx];
