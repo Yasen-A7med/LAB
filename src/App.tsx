@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import UltraProxy from './components/UltraProxy';
-import DeciTask from './components/DeciTask';
 import Thanawya from './components/Thanawya';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'decitask' | 'thanawya'>(() => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya'>(() => {
     if (window.location.pathname === '/ultraproxy') return 'ultraproxy';
-    if (window.location.pathname === '/decitask' || window.location.pathname === '/deci') return 'decitask';
     if (window.location.pathname === '/thanawya') return 'thanawya';
     return 'dashboard';
   });
@@ -25,8 +23,6 @@ const App: React.FC = () => {
     const handlePopState = () => {
       if (window.location.pathname === '/ultraproxy') {
         setCurrentView('ultraproxy');
-      } else if (window.location.pathname === '/decitask' || window.location.pathname === '/deci') {
-        setCurrentView('decitask');
       } else if (window.location.pathname === '/thanawya') {
         setCurrentView('thanawya');
       } else {
@@ -44,9 +40,6 @@ const App: React.FC = () => {
           scope: '/uv/service/',
         });
 
-        // Wait for the SW to become active (don't use navigator.serviceWorker.ready
-        // because it only resolves when the SW controls THIS page, and our scope
-        // is /uv/service/ which doesn't include / or /ultraproxy)
         if (!registration.active) {
           await new Promise<void>((resolve) => {
             const sw = registration.installing || registration.waiting;
@@ -57,7 +50,6 @@ const App: React.FC = () => {
           });
         }
 
-        // Initialize BareMux transport
         const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
         const connection = new BareMuxConnection('/baremux/worker.js');
         
@@ -65,19 +57,14 @@ const App: React.FC = () => {
         const userUrl = localStorage.getItem('ultraproxy_server_url') || 'wss://nebulaproxy.io/wisp/';
 
         if (type === 'wisp') {
-          // Check if we previously determined that Wisp doesn't work on this device
           const lastWorkingTransport = localStorage.getItem('ultraproxy_last_working_transport');
           
           if (lastWorkingTransport === 'bare') {
-            // Previous session found that WebSocket is blocked — go straight to Bare
             const bareUrl = `${window.location.origin}/api/bare/`;
-            console.log(`UV Using cached Bare transport (WebSocket previously blocked): ${bareUrl}`);
             await connection.setTransport('/bare/index.mjs', [bareUrl]);
-            console.log(`UV Transport initialized: bare -> ${bareUrl}`);
             setTransportType('bare');
             setServerUrl(bareUrl);
           } else {
-            // Wisp servers to try in order (user's choice first, then fallbacks)
             const FALLBACK_WISPS = [
               'wss://nebulaproxy.io/wisp/',
               'wss://anura.pro/wisp/',
@@ -86,7 +73,6 @@ const App: React.FC = () => {
             ];
             const servers = [userUrl, ...FALLBACK_WISPS.filter(s => s !== userUrl)];
             
-            // Test WebSocket connectivity with shorter timeout
             const testWisp = (url: string, timeoutMs = 3000): Promise<boolean> => {
               return new Promise((resolve) => {
                 try {
@@ -117,63 +103,48 @@ const App: React.FC = () => {
 
             let foundWisp = false;
             for (const server of servers) {
-              console.log(`UV Testing wisp server: ${server}...`);
               const ok = await testWisp(server);
               if (ok) {
                 await connection.setTransport('/epoxy/index.mjs', [{ wisp: server }]);
-                console.log(`UV Transport initialized: wisp -> ${server}`);
                 localStorage.setItem('ultraproxy_last_working_transport', 'wisp');
                 foundWisp = true;
                 break;
-              } else {
-                console.warn(`UV Wisp server FAILED: ${server}, trying next...`);
               }
             }
 
-            // If ALL Wisp servers failed (WebSocket blocked), fall back to local Bare server
             if (!foundWisp) {
               const bareUrl = `${window.location.origin}/api/bare/`;
-              console.log(`UV All Wisp servers failed! Falling back to Bare: ${bareUrl}`);
               await connection.setTransport('/bare/index.mjs', [bareUrl]);
-              console.log(`UV Transport initialized: bare -> ${bareUrl}`);
               setTransportType('bare');
               setServerUrl(bareUrl);
-              // Remember this for next time
               localStorage.setItem('ultraproxy_last_working_transport', 'bare');
             }
           }
         } else {
           await connection.setTransport('/bare/index.mjs', [userUrl]);
-          console.log(`UV Transport initialized: bare -> ${userUrl}`);
         }
 
         setSwRegistered(true);
       } catch (err) {
         console.error('UV setup failed:', err);
-        setSwRegistered(true); // Allow UI even if transport fails
+        setSwRegistered(true);
       }
-    } else {
-      console.warn('Service Workers not supported');
     }
   };
 
   const updateTransportConfig = async (type: 'wisp' | 'bare', url: string) => {
     try {
       const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
-      const workerUrl = '/baremux/worker.js';
-      const connection = new BareMuxConnection(workerUrl);
+      const connection = new BareMuxConnection('/baremux/worker.js');
       if (type === 'wisp') {
-        const epoxyUrl = '/epoxy/index.mjs';
-        await connection.setTransport(epoxyUrl, [{ wisp: url }]);
+        await connection.setTransport('/epoxy/index.mjs', [{ wisp: url }]);
       } else {
-        const bareUrl = '/bare/index.mjs';
-        await connection.setTransport(bareUrl, [url]);
+        await connection.setTransport('/bare/index.mjs', [url]);
       }
       localStorage.setItem('ultraproxy_transport_type', type);
       localStorage.setItem('ultraproxy_server_url', url);
       setTransportType(type);
       setServerUrl(url);
-      console.log(`Transport switched to ${type}: ${url}`);
     } catch (err) {
       console.error('Failed to update transport:', err);
       throw err;
@@ -183,12 +154,8 @@ const App: React.FC = () => {
   const handleLaunch = (id: string) => {
     if (id === 'ultraproxy') {
       window.open('/ultraproxy', '_blank');
-    } else if (id === 'decitask') {
-      window.history.pushState({}, '', '/decitask');
-      setCurrentView('decitask');
     } else if (id === 'thanawya') {
-      window.history.pushState({}, '', '/thanawya');
-      setCurrentView('thanawya');
+      window.open('/thanawya', '_blank');
     }
   };
 
@@ -211,11 +178,6 @@ const App: React.FC = () => {
           transportType={transportType}
           serverUrl={serverUrl}
           onUpdateConfig={updateTransportConfig}
-        />
-      )}
-      {currentView === 'decitask' && (
-        <DeciTask 
-          onBack={handleBack}
         />
       )}
       {currentView === 'thanawya' && (
