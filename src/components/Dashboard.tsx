@@ -13,7 +13,7 @@ import {
   Sparkles,
   ShieldCheck,
   Code2,
-  ChevronRight
+  ArrowRight
 } from 'lucide-react';
 import AnimatedLiquidBackground from './AnimatedLiquidBackground';
 
@@ -25,15 +25,18 @@ interface DashboardProps {
 const projects = [
   {
     id: 'ultraproxy',
-    title: 'UltraProxy',
-    desc: 'High-performance web proxy with XOR obfuscation. Bypass ISP restrictions and stream without limits.',
+    title: 'UltraProxy Engine',
+    desc: 'High-speed web emulator with XOR obfuscation. Access web resources freely without CORS restrictions or ISP blocking.',
     icon: Globe,
     accent: 'from-[#00f2ff] via-sky-500 to-indigo-600',
-    glowColor: 'rgba(0, 242, 255, 0.18)',
-    tag: 'Network Proxy',
+    topBorder: 'from-cyan-400 via-sky-500 to-blue-600',
+    glowColor: 'rgba(0, 242, 255, 0.12)',
+    tag: 'Network Emulator',
     tech: ['Service Worker', 'Wisp / Bare', 'XOR Engine'],
-    gradientText: 'from-cyan-400 to-sky-500',
-    btnBg: 'bg-gradient-to-r from-cyan-500 to-blue-600'
+    gradientText: 'from-cyan-400 to-sky-400',
+    btnBg: 'bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500',
+    btnText: 'Launch UltraProxy',
+    badgeColor: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20'
   },
   {
     id: 'thanawya',
@@ -41,11 +44,14 @@ const projects = [
     desc: 'استعلم عن نتيجة الثانوية العامة 2026 بالاسم أو رقم الجلوس. محرك بحث ذكي وسريع باللغة العربية.',
     icon: GraduationCap,
     accent: 'from-violet-500 via-purple-500 to-fuchsia-600',
-    glowColor: 'rgba(168, 85, 247, 0.18)',
-    tag: 'Educational',
-    tech: ['الثانوية العامة 2026', 'Smart Search', 'RTL Engine'],
+    topBorder: 'from-violet-500 via-purple-500 to-fuchsia-500',
+    glowColor: 'rgba(168, 85, 247, 0.12)',
+    tag: 'Educational Portal',
+    tech: ['الصف الثالث الثانوي 2026', 'Smart Search', 'RTL Engine'],
     gradientText: 'from-violet-400 to-fuchsia-400',
-    btnBg: 'bg-gradient-to-r from-violet-600 to-fuchsia-600'
+    btnBg: 'bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500',
+    btnText: 'عرض نتيجتك الان',
+    badgeColor: 'text-violet-400 bg-violet-400/10 border-violet-400/20'
   },
 ];
 
@@ -63,7 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
   return (
     <div className="noise-overlay bg-dot-grid min-h-screen min-h-[100dvh] bg-[#030305] text-white flex flex-col relative overflow-hidden select-none">
       
-      {/* Animated Liquid Background Component */}
+      {/* Optimized Animated Liquid Background */}
       <AnimatedLiquidBackground />
 
       {/* Copy Notification Toast */}
@@ -122,8 +128,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
       </header>
 
       {/* ──────────────── Hero Section ──────────────── */}
-      <section className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-8 py-8 sm:py-20 text-center">
-        <div className="max-w-3xl w-full flex flex-col items-center gap-4 sm:gap-8">
+      <section className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-8 py-8 sm:py-16 text-center">
+        <div className="max-w-3xl w-full flex flex-col items-center gap-4 sm:gap-6">
           
           {/* Top Pill */}
           <motion.div
@@ -141,7 +147,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
-            className="text-[2.5rem] leading-[0.92] sm:text-6xl md:text-8xl font-black tracking-[-0.04em] sm:leading-[0.95]"
+            className="text-[2.6rem] leading-[0.92] sm:text-6xl md:text-8xl font-black tracking-[-0.04em] sm:leading-[0.95]"
           >
             <span className="block text-white">Build.</span>
             <span className="block gradient-text bg-gradient-to-r from-sky-400 via-violet-400 to-fuchsia-400 animate-shimmer">
@@ -162,10 +168,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
         </div>
       </section>
 
-      {/* ──────────────── Projects Grid ──────────────── */}
+      {/* ──────────────── Projects Cards Section ──────────────── */}
       <section className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-8 pb-14 sm:pb-24">
         
-        {/* Section Title */}
+        {/* Section Header */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -174,18 +180,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
           className="flex items-center justify-between mb-5 sm:mb-8"
         >
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <Code2 size={15} className="text-sky-400" />
+            <Code2 size={16} className="text-sky-400" />
             <h2 className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-gray-400">
               Active Projects
             </h2>
           </div>
-          <span className="text-[10px] sm:text-xs font-semibold px-2.5 py-0.5 sm:py-1 rounded-full bg-white/[0.04] border border-white/10 text-gray-400">
+          <span className="text-[10px] sm:text-xs font-semibold px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-gray-400">
             2 Released
           </span>
         </motion.div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
+        {/* Overhauled Project Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {projects.map((p, index) => {
             const IconComponent = p.icon;
             return (
@@ -195,60 +201,69 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.12 }}
-                whileHover={{ y: -6, scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ y: -6 }}
+                whileTap={{ scale: 0.985 }}
                 onClick={() => onLaunch(p.id)}
-                className="glow-card relative group rounded-2xl sm:rounded-3xl p-5 sm:p-8 cursor-pointer flex flex-col justify-between overflow-hidden active:bg-white/[0.05]"
+                className="glow-card relative group rounded-3xl p-6 sm:p-8 cursor-pointer flex flex-col justify-between overflow-hidden border border-white/10 hover:border-white/20 transition-all shadow-xl bg-[#0b0b14]/75 backdrop-blur-xl"
               >
-                {/* Glow Backdrop */}
+                {/* Top Border Gradient Accent */}
+                <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${p.topBorder}`} />
+
+                {/* Glow Backdrop on hover */}
                 <div 
-                  className="absolute top-0 right-0 w-60 h-60 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-3xl"
+                  className="absolute top-0 right-0 w-64 h-64 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-3xl"
                   style={{ background: p.glowColor }}
                 />
 
                 <div>
-                  {/* Top Bar inside Card */}
-                  <div className="flex items-start justify-between mb-4 sm:mb-6">
-                    <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${p.accent} flex items-center justify-center shadow-lg shadow-black/40 text-white shrink-0`}>
-                      <IconComponent size={22} className="sm:hidden" />
-                      <IconComponent size={24} className="hidden sm:block" />
+                  {/* Card Header Row */}
+                  <div className="flex items-start justify-between mb-5 gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${p.accent} flex items-center justify-center shadow-lg text-white shrink-0`}>
+                        <IconComponent size={24} />
+                      </div>
+                      <div>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${p.badgeColor}`}>
+                          {p.tag}
+                        </span>
+                        <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white mt-1 group-hover:text-white/95 transition-colors">
+                          {p.title}
+                        </h3>
+                      </div>
                     </div>
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:bg-white/10 transition-all duration-300">
-                      <ArrowUpRight size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform sm:hidden" />
-                      <ArrowUpRight size={18} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform hidden sm:block" />
+                    <div className="w-9 h-9 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:bg-white/10 transition-all shrink-0">
+                      <ArrowUpRight size={18} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                     </div>
                   </div>
 
-                  {/* Tag */}
-                  <div className="inline-block px-2.5 py-0.5 sm:py-1 rounded-full bg-white/[0.04] border border-white/10 text-[10px] sm:text-[11px] font-semibold text-gray-300 mb-2.5 sm:mb-3">
-                    {p.tag}
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white mb-2 sm:mb-3 group-hover:text-white/95 transition-colors">
-                    {p.title}
-                  </h3>
-
-                  {/* Description */}
-                  <p className="text-xs sm:text-base text-gray-400 leading-relaxed font-light mb-5 sm:mb-6">
+                  {/* Card Description */}
+                  <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-light mb-6">
                     {p.desc}
                   </p>
                 </div>
 
-                {/* Tech Chips & Launch Action */}
-                <div className="pt-3.5 sm:pt-4 border-t border-white/[0.06] flex items-center justify-between flex-wrap gap-2.5">
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                {/* Card Footer Actions */}
+                <div className="pt-4 border-t border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  {/* Tech Badges */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {p.tech.map((t, idx) => (
-                      <span key={idx} className="text-[10px] sm:text-[11px] font-medium text-gray-400 px-2 py-0.5 rounded-md bg-white/[0.03]">
+                      <span key={idx} className="text-[10px] sm:text-[11px] font-medium text-gray-400 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06]">
                         {t}
                       </span>
                     ))}
                   </div>
 
-                  <div className="w-full sm:w-auto mt-2 sm:mt-0 flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl bg-white/[0.05] group-hover:bg-white/10 border border-white/10 text-xs font-bold text-white transition-all">
-                    <span>Launch</span>
-                    <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                  </div>
+                  {/* Prominent Launch Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLaunch(p.id);
+                    }}
+                    className={`w-full sm:w-auto px-5 py-2.5 rounded-xl ${p.btnBg} text-white text-xs sm:text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-all min-h-[44px] active:scale-[0.97]`}
+                  >
+                    <span>{p.btnText}</span>
+                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                  </button>
                 </div>
               </motion.div>
             );
