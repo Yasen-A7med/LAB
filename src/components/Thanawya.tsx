@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { 
   ArrowRight, Search, X, ChevronLeft, ChevronRight, 
-  GraduationCap, Loader2, Copy, Share2, Check, SlidersHorizontal, AlertCircle
+  GraduationCap, Loader2, Copy, Share2, Check, SlidersHorizontal, AlertCircle, Sparkles
 } from 'lucide-react';
 import type { Record4, SearchOptions } from '../workers/thanawyaWorker';
 
@@ -16,7 +17,10 @@ interface WorkerResultItem {
 
 const PER_PAGE = 20;
 
-const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
+// Spring physics config per Design Skill directive
+const SPRING_TRANSITION: Transition = { type: "spring", stiffness: 380, damping: 32 };
+
+export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
   // Worker & Progress State
   const workerRef = useRef<Worker | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -143,57 +147,101 @@ const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  // Status Badge Styling
-  const getStatusBadge = (caseName: string) => {
-    if (caseName.includes('ناجح')) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    if (caseName.includes('راسب') || caseName.includes('رسب')) return 'bg-red-500/10 text-red-400 border-red-500/20';
-    if (caseName.includes('دور ثان')) return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-    return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+  // Status Badge Styling with Glow (from Design Skill status-badge)
+  const getStatusBadgeStyle = (caseName: string) => {
+    if (caseName.includes('ناجح')) return {
+      border: 'border-emerald-500/30',
+      bg: 'bg-emerald-500/10 text-emerald-400',
+      glow: 'bg-[radial-gradient(ellipse_80%_100%_at_50%_100%,rgba(16,185,129,0.4)_0%,transparent_70%)]'
+    };
+    if (caseName.includes('راسب') || caseName.includes('رسب')) return {
+      border: 'border-red-500/30',
+      bg: 'bg-red-500/10 text-red-400',
+      glow: 'bg-[radial-gradient(ellipse_80%_100%_at_50%_100%,rgba(239,68,68,0.4)_0%,transparent_70%)]'
+    };
+    if (caseName.includes('دور ثان')) return {
+      border: 'border-amber-500/30',
+      bg: 'bg-amber-500/10 text-amber-400',
+      glow: 'bg-[radial-gradient(ellipse_80%_100%_at_50%_100%,rgba(245,158,11,0.4)_0%,transparent_70%)]'
+    };
+    return {
+      border: 'border-gray-500/30',
+      bg: 'bg-gray-500/10 text-gray-400',
+      glow: 'bg-[radial-gradient(ellipse_80%_100%_at_50%_100%,rgba(156,163,175,0.4)_0%,transparent_70%)]'
+    };
   };
 
   return (
-    <div className="min-h-screen bg-[#06060c] text-white font-sans selection:bg-indigo-500/30 relative" dir="rtl">
+    <div className="min-h-screen bg-[#05050a] text-white font-['Cairo',sans-serif] selection:bg-indigo-500/30 relative overflow-x-hidden" dir="rtl">
       
+      {/* Subtle Background Glow Accent */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[160px] -top-[150px] -right-[100px]" />
+        <div className="absolute w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[160px] -bottom-[100px] -left-[100px]" />
+      </div>
+
       {/* Top Header */}
-      <header className="sticky top-0 z-50 bg-[#06060c]/90 backdrop-blur-md border-b border-white/5">
+      <header className="sticky top-0 z-50 bg-[#05050a]/80 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onBack}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+              className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-gray-400 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
               title="رجوع"
             >
               <ArrowRight size={18} />
-            </button>
-            <div className="flex items-center gap-2">
-              <GraduationCap size={22} className="text-indigo-400" />
-              <h1 className="font-bold text-lg text-white">نتيجة الثانوية العامة 2026</h1>
+            </motion.button>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <GraduationCap size={20} className="text-white" />
+              </div>
+              <h1 className="font-bold text-base md:text-lg text-white">نتيجة الثانوية العامة 2026</h1>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="max-w-3xl mx-auto px-4 pt-10 pb-16 space-y-8">
+      {/* Main Content */}
+      <main className="relative z-10 max-w-3xl mx-auto px-4 pt-8 pb-16 space-y-6">
 
-        {/* Loading Progress Bar (0% - 100%) */}
-        {!isReady && !errorMsg && (
-          <div className="bg-[#0b0b14] border border-white/10 rounded-2xl p-8 text-center space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between text-xs font-semibold text-gray-400 mb-1">
-              <span>{loadMsg}</span>
-              <span className="text-indigo-400 font-bold text-sm">{progressPct}%</span>
-            </div>
+        {/* Loading Progress State (Zeigarnik Effect with Framer Motion) */}
+        <AnimatePresence mode="wait">
+          {!isReady && !errorMsg && (
+            <motion.div
+              key="loading-progress"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={SPRING_TRANSITION}
+              className="bg-[#0b0b14]/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 text-center space-y-5 shadow-2xl relative overflow-hidden"
+            >
+              {/* Radial Top Glow */}
+              <div className="pointer-events-none absolute -top-4 left-[10%] right-[10%] h-8 blur-[16px] bg-[radial-gradient(ellipse_80%_100%_at_50%_0%,rgba(99,102,241,0.5)_0%,transparent_70%)]" />
 
-            {/* Clean Animated Progress Track */}
-            <div className="w-full bg-white/5 rounded-full h-3 overflow-hidden p-0.5 border border-white/5">
-              <div 
-                className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-full rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(99,102,241,0.5)]"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            <p className="text-gray-500 text-xs">يتم التجهيز مرة واحدة فقط لتوفير استعلام تلمي فائق السرعة</p>
-          </div>
-        )}
+              <div className="flex items-center justify-between text-xs font-semibold text-gray-300">
+                <span className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-indigo-400 animate-pulse" />
+                  {loadMsg}
+                </span>
+                <span className="text-indigo-400 font-extrabold text-sm">{progressPct}%</span>
+              </div>
+
+              {/* Progress Track */}
+              <div className="w-full bg-white/[0.04] rounded-full h-3 overflow-hidden p-0.5 border border-white/10 relative">
+                <motion.div 
+                  className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-full rounded-full shadow-[0_0_12px_rgba(99,102,241,0.6)]"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${progressPct}%` }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                />
+              </div>
+
+              <p className="text-gray-500 text-xs">تجهيز مؤقت مرة واحدة لاستعلام تلمي ومباشر ⚡</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Error State */}
         {errorMsg && (
@@ -203,12 +251,12 @@ const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
           </div>
         )}
 
-        {/* Search View */}
+        {/* Interactive Search UI */}
         {isReady && (
           <div className="space-y-6">
 
-            {/* Search Box */}
-            <div className="relative flex items-center bg-[#0b0b14] border border-white/10 rounded-2xl p-2 shadow-xl focus-within:border-indigo-500/60 transition-all">
+            {/* Main Search Field */}
+            <div className="relative flex items-center bg-[#0b0b14] border border-white/10 rounded-2xl p-2 shadow-xl focus-within:border-indigo-500/60 focus-within:shadow-[0_0_24px_rgba(99,102,241,0.2)] transition-all">
               <div className="flex-1 flex items-center gap-3 px-3">
                 <Search size={20} className="text-indigo-400 shrink-0" />
                 <input
@@ -222,48 +270,52 @@ const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                   spellCheck={false}
                 />
                 {query && (
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => {
                       setQuery('');
                       inputRef.current?.focus();
                     }}
-                    className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-white"
+                    className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white min-w-[36px] min-h-[36px] flex items-center justify-center"
                   >
                     <X size={16} />
-                  </button>
+                  </motion.button>
                 )}
               </div>
 
               {/* Options Toggle */}
-              <button
+              <motion.button
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setShowOptions(!showOptions)}
-                className={`p-3 rounded-xl border text-sm transition-all ml-1 ${
+                className={`p-3 rounded-xl border text-sm transition-all ml-1 min-w-[44px] min-h-[44px] flex items-center justify-center ${
                   showOptions || statusFilter !== 'all' || sortBy !== 'rel'
-                    ? 'bg-indigo-600 text-white border-indigo-500'
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/30'
                     : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                 }`}
                 title="خيارات إضافية"
               >
                 <SlidersHorizontal size={18} />
-              </button>
+              </motion.button>
 
               {/* Search Button */}
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => dispatchSearch({ page: 1 })}
                 disabled={searching}
-                className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:brightness-110 text-white font-bold text-sm rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                className="px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 hover:brightness-110 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-2"
               >
                 {searching ? <Loader2 size={18} className="animate-spin" /> : <span>بحث</span>}
-              </button>
+              </motion.button>
             </div>
 
             {/* Quick Status Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-xl border font-semibold shrink-0 transition-all ${
+                className={`px-3.5 py-2 rounded-xl border font-semibold shrink-0 transition-all min-h-[36px] ${
                   statusFilter === 'all'
-                    ? 'bg-indigo-600 text-white border-indigo-500'
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm shadow-indigo-500/30'
                     : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                 }`}
               >
@@ -273,9 +325,9 @@ const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                 <button
                   key={i}
                   onClick={() => setStatusFilter(c)}
-                  className={`px-3 py-1.5 rounded-xl border font-semibold shrink-0 transition-all ${
+                  className={`px-3.5 py-2 rounded-xl border font-semibold shrink-0 transition-all min-h-[36px] ${
                     statusFilter === c
-                      ? 'bg-indigo-600 text-white border-indigo-500'
+                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm shadow-indigo-500/30'
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                   }`}
                 >
@@ -284,70 +336,95 @@ const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
               ))}
             </div>
 
-            {/* Additional Options Dropdown */}
-            {showOptions && (
-              <div className="bg-[#0b0b14] border border-white/10 rounded-2xl p-4 space-y-3 text-xs animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 font-semibold">ترتيب النتائج</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-[#141424] border border-white/10 rounded-lg px-3 py-1.5 text-white font-semibold outline-none"
-                  >
-                    <option value="rel">الأكثر صلة وتطابقاً</option>
-                    <option value="score_desc">الأعلى مجموعاً</option>
-                    <option value="score_asc">الأقل مجموعاً</option>
-                    <option value="seat_asc">رقم الجلوس</option>
-                    <option value="name_asc">أبجدياً بالاسم</option>
-                  </select>
-                </div>
-              </div>
-            )}
+            {/* Collapsible Options Dropdown */}
+            <AnimatePresence>
+              {showOptions && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={SPRING_TRANSITION}
+                  className="bg-[#0b0b14] border border-white/10 rounded-2xl p-4 space-y-3 text-xs overflow-hidden"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 font-semibold">ترتيب النتائج حسب</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="bg-[#141424] border border-white/10 rounded-lg px-3 py-1.5 text-white font-semibold outline-none focus:border-indigo-500"
+                    >
+                      <option value="rel">الأكثر صلة وتطابقاً</option>
+                      <option value="score_desc">الأعلى مجموعاً</option>
+                      <option value="score_asc">الأقل مجموعاً</option>
+                      <option value="seat_asc">رقم الجلوس</option>
+                      <option value="name_asc">أبجدي بالاسم</option>
+                    </select>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Results Output */}
+            {/* Results Grid */}
             {searched && (
               <div className="space-y-4 pt-2">
                 
-                {/* Result Count Bar */}
-                <div className="text-xs text-gray-400 font-semibold flex items-center justify-between">
-                  <span>تم العثور على <strong className="text-indigo-400 font-bold">{totalMatches.toLocaleString('ar-EG')}</strong> نتيجة</span>
+                {/* Result Count Header */}
+                <div className="text-xs text-gray-400 font-semibold flex items-center justify-between px-1">
+                  <span>تم العثور على <strong className="text-indigo-400 font-extrabold">{totalMatches.toLocaleString('ar-EG')}</strong> نتيجة</span>
                 </div>
 
-                {/* Cards List */}
+                {/* Cards List with Framer Motion spring physics */}
                 {results.length > 0 ? (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <motion.div 
+                      className="grid grid-cols-1 md:grid-cols-2 gap-3"
+                      initial="hidden"
+                      animate="visible"
+                      variants={{
+                        visible: { transition: { staggerChildren: 0.04 } }
+                      }}
+                    >
                       {results.map(({ rec }, i) => {
                         const seat = rec[0];
                         const name = rec[1];
                         const scoreStr = rec[2];
                         const caseName = casesList[rec[3]] || '';
-                        const badgeStyle = getStatusBadge(caseName);
+                        const badgeStyle = getStatusBadgeStyle(caseName);
                         const scoreNum = parseFloat(scoreStr);
                         const perc = !isNaN(scoreNum) ? ((scoreNum / 410) * 100).toFixed(1) : null;
 
                         return (
-                          <div
+                          <motion.div
                             key={i}
-                            className="bg-[#0b0b14] border border-white/10 hover:border-indigo-500/30 rounded-2xl p-4 transition-all space-y-3"
+                            variants={{
+                              hidden: { opacity: 0, y: 15 },
+                              visible: { opacity: 1, y: 0 }
+                            }}
+                            transition={SPRING_TRANSITION}
+                            className="bg-[#0b0b14] border border-white/10 hover:border-indigo-500/30 rounded-2xl p-4 transition-colors space-y-3 relative overflow-hidden group"
                           >
+                            {/* Radial Card Top Glow */}
+                            <div className={`pointer-events-none absolute -top-4 left-[10%] right-[10%] h-4 blur-[8px] ${badgeStyle.glow}`} />
+
                             <div className="flex items-start justify-between gap-2">
                               <h3 className="font-bold text-base text-white leading-snug">{name}</h3>
-                              <div className="flex items-center gap-1">
-                                <button
+                              <div className="flex items-center gap-1 shrink-0">
+                                <motion.button
+                                  whileTap={{ scale: 0.85 }}
                                   onClick={() => handleCopyResult(rec)}
-                                  className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-white"
+                                  className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                                   title="نسخ النتيجة"
                                 >
                                   {copiedId === seat ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
-                                </button>
-                                <button
+                                </motion.button>
+                                <motion.button
+                                  whileTap={{ scale: 0.85 }}
                                   onClick={() => handleShareResult(rec)}
-                                  className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-emerald-400"
+                                  className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-emerald-400 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                                   title="واتساب"
                                 >
                                   <Share2 size={15} />
-                                </button>
+                                </motion.button>
                               </div>
                             </div>
 
@@ -366,45 +443,47 @@ const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
 
                             <div className="flex items-center justify-between text-xs pt-1">
                               <span className="text-gray-500 text-[11px]">الحالة</span>
-                              <span className={`px-2.5 py-1 rounded-full font-semibold border ${badgeStyle}`}>
+                              <span className={`px-2.5 py-1 rounded-full font-semibold border ${badgeStyle.bg} ${badgeStyle.border}`}>
                                 {caseName}
                               </span>
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
-                    </div>
+                    </motion.div>
 
-                    {/* Simple Pagination */}
+                    {/* Pagination */}
                     {totalPages > 1 && (
                       <div className="flex items-center justify-center gap-2 pt-4">
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
                           onClick={() => {
                             const p = Math.max(1, page - 1);
                             setPage(p);
                             dispatchSearch({ page: p });
                           }}
                           disabled={page === 1}
-                          className="p-2 rounded-xl border border-white/10 bg-[#0b0b14] text-gray-400 disabled:opacity-30"
+                          className="p-2.5 rounded-xl border border-white/10 bg-[#0b0b14] text-gray-400 disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         >
                           <ChevronRight size={18} />
-                        </button>
+                        </motion.button>
 
                         <span className="text-xs text-gray-400 font-semibold px-2">
                           صفحة {page} من {totalPages}
                         </span>
 
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
                           onClick={() => {
                             const p = Math.min(totalPages, page + 1);
                             setPage(p);
                             dispatchSearch({ page: p });
                           }}
                           disabled={page === totalPages}
-                          className="p-2 rounded-xl border border-white/10 bg-[#0b0b14] text-gray-400 disabled:opacity-30"
+                          className="p-2.5 rounded-xl border border-white/10 bg-[#0b0b14] text-gray-400 disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         >
                           <ChevronLeft size={18} />
-                        </button>
+                        </motion.button>
                       </div>
                     )}
                   </>
