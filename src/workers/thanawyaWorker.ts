@@ -184,13 +184,12 @@ async function loadDataset(url: string) {
       chunks.push(value);
       loadedBytes += value.byteLength;
       
-      const pct = Math.round((loadedBytes / totalBytes) * 65) + 10; // 10% to 75%
+      const pct = Math.round((loadedBytes / totalBytes) * 65) + 10;
       sendProgress(pct, `جاري التنزيل... (${(loadedBytes / (1024 * 1024)).toFixed(1)} ميجابايت)`);
     }
 
     sendProgress(75, 'جاري فك الضغط في الذاكرة...');
     
-    // Combine chunks into a single Blob to decompress
     const compressedBlob = new Blob(chunks as BlobPart[]);
     const ds = new DecompressionStream('gzip');
     const decompressedStream = compressedBlob.stream().pipeThrough(ds);
@@ -210,7 +209,6 @@ async function loadDataset(url: string) {
     sendProgress(90, 'جاري تحليل القوائم السريعة...');
     compact = JSON.parse(jsonText) as CompactData;
 
-    // Cache asynchronously
     saveToIDB(compact).catch(() => {});
   }
 
@@ -267,6 +265,9 @@ function handleSearch(opts: SearchOptions) {
   const normQ = normalizeArabic(rawQ, opts.matchMode === 'fuzzy');
   const tokens = normQ.split(/\s+/).filter(Boolean);
 
+  // Performance optimization: Pre-resolve status filter string to integer index
+  const targetCaseIdx = opts.statusFilter !== 'all' ? CASES.indexOf(opts.statusFilter) : -1;
+
   const matchedIndices: { idx: number; score: number }[] = [];
 
   for (let i = 0; i < RECORDS.length; i++) {
@@ -276,11 +277,8 @@ function handleSearch(opts: SearchOptions) {
     const caseIdx = rec[3];
     const degree = DEGREES[i];
 
-    // 1. Status Filter
-    if (opts.statusFilter !== 'all') {
-      const caseName = CASES[caseIdx];
-      if (caseName !== opts.statusFilter) continue;
-    }
+    // 1. Status Filter (Integer comparison instead of string lookup)
+    if (targetCaseIdx !== -1 && caseIdx !== targetCaseIdx) continue;
 
     // 2. Score Range Filter
     if (opts.minScore !== null && degree < opts.minScore) continue;
@@ -295,6 +293,8 @@ function handleSearch(opts: SearchOptions) {
     if (isNumeric) {
       if (seat === rawQ) {
         matchedIndices.push({ idx: i, score: 10000 });
+        // Performance optimization: Seat numbers are unique 7-digit IDs. Early exit on exact match!
+        if (opts.matchMode === 'exact' || rawQ.length >= 6) break;
       } else if (opts.matchMode !== 'exact' && seat.startsWith(rawQ)) {
         matchedIndices.push({ idx: i, score: 5000 + (100 - (seat.length - rawQ.length)) });
       } else if (opts.matchMode !== 'exact' && seat.includes(rawQ)) {
@@ -310,13 +310,15 @@ function handleSearch(opts: SearchOptions) {
       } else {
         let tokenMatches = 0;
         let exactTokenMatches = 0;
+        let nameTokens: string[] | null = null;
 
         for (const t of tokens) {
           if (nameNorm.includes(t)) {
             tokenMatches++;
             exactTokenMatches++;
           } else if (opts.matchMode === 'fuzzy') {
-            const nameTokens = nameNorm.split(' ');
+            // Lazy tokenize candidate name only when fuzzy match fallback is needed
+            if (!nameTokens) nameTokens = nameNorm.split(' ');
             for (const nt of nameTokens) {
               if (nt.length >= 3 && Math.abs(nt.length - t.length) <= 1) {
                 if (editDistance(nt, t) <= 1) {
@@ -343,7 +345,7 @@ function handleSearch(opts: SearchOptions) {
   } else if (opts.sortBy === 'score_asc') {
     matchedIndices.sort((a, b) => DEGREES[a.idx] - DEGREES[b.idx]);
   } else if (opts.sortBy === 'seat_asc') {
-    matchedIndices.sort((a, b) => parseInt(RECORDS[a.idx][0]) - parseInt(RECORDS[b.idx][0]));
+    matchedIndices.sort((a, b) => RECORDS[a.idx][0].localeCompare(RECORDS[b.idx][0], undefined, { numeric: true }));
   } else if (opts.sortBy === 'name_asc') {
     matchedIndices.sort((a, b) => RECORDS[a.idx][1].localeCompare(RECORDS[b.idx][1], 'ar'));
   } else {
