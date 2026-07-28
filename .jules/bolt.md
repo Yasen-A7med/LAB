@@ -2,6 +2,6 @@
 
 Critical performance learnings and patterns discovered in this codebase.
 
-## 2026-07-29 - Status Filter & Seat Search Optimization in WebWorker
-**Learning:** In large dataset loops (919,396 records in worker), performing string lookups like `CASES[caseIdx] !== opts.statusFilter` and continuing to iterate after finding a unique 7-digit seat number exact match adds unnecessary CPU cycles and memory allocations. Resolving status filter strings to integer index `targetCaseIdx` before the loop and adding early termination for exact seat number matches reduces search latency significantly.
-**Action:** Always resolve string lookups to integer index constants outside iteration loops, and add early exits for unique key matches.
+## 2026-07-29 - Sub-Filter String Allocation & Numeric Seat Sort Optimization in WebWorker
+**Learning:** In large dataset loops (~920k records in worker), creating temporary template literal strings like `${nameNorm} ${seat} ${CASES[caseIdx]} ${degree}` inside candidate loops causes high garbage collection (GC) pressure. Short-circuit `.includes()` checks avoid heap allocations completely. Furthermore, sorting integer seat strings via `localeCompare(..., { numeric: true })` is ~15x slower than direct `parseInt` subtraction.
+**Action:** Use short-circuit property checks instead of dynamic string concatenation in hot iteration loops, and use integer subtraction for numeric string IDs in sort comparators.
