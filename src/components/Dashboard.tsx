@@ -3,7 +3,8 @@ import {
   Globe, 
   Layers, 
   ChevronRight,
-  BookOpen
+  BookOpen,
+  GraduationCap
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -85,7 +86,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
         </div>
 
         {/* Projects Showcase Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-5xl">
           
           {/* Card 1: DECI Task Hub */}
           <div className="relative group">
@@ -152,6 +153,41 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
                 className="group/btn relative w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-white hover:bg-gray-100 text-black font-bold text-sm rounded-xl overflow-hidden transition-all duration-300 active:scale-95"
               >
                 <span>Launch Proxy</span>
+                <ChevronRight size={16} className="transition-transform group-hover/btn:translate-x-1" />
+              </button>
+            </div>
+          </div>
+
+          {/* Card 3: Thanawya Results */}
+          <div className="relative group md:col-span-2 lg:col-span-1">
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-[2rem] blur-xl opacity-20 group-hover:opacity-35 transition-opacity duration-700 pointer-events-none" />
+            
+            <div className="relative h-full bg-[#0a0a0d]/80 backdrop-blur-3xl border border-white/10 rounded-[1.8rem] p-8 overflow-hidden shadow-2xl transition-all duration-500 hover:-translate-y-1.5 flex flex-col justify-between min-h-[300px]">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+              
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-900/40 to-pink-900/40 border border-purple-500/20 flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+                    <GraduationCap size={26} className="text-purple-400" />
+                  </div>
+                  <div>
+                    <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] uppercase font-bold tracking-widest text-purple-400">
+                      Exam Results
+                    </span>
+                    <h3 className="text-2xl font-bold text-white tracking-tight mt-0.5">نتيجة الثانوية</h3>
+                  </div>
+                </div>
+                
+                <p className="text-gray-400 text-sm leading-relaxed mb-6 font-light">
+                  استعلم عن نتيجة الثانوية العامة 2026 بالاسم أو رقم الجلوس. بحث ذكي مع دعم كامل للغة العربية.
+                </p>
+              </div>
+
+              <button
+                onClick={() => onLaunch('thanawya')}
+                className="group/btn relative w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm rounded-xl overflow-hidden transition-all duration-300 active:scale-95 shadow-[0_4px_20px_rgba(168,85,247,0.2)]"
+              >
+                <span>ابحث عن نتيجتك</span>
                 <ChevronRight size={16} className="transition-transform group-hover/btn:translate-x-1" />
               </button>
             </div>

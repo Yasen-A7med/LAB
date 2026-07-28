@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import UltraProxy from './components/UltraProxy';
 import DeciTask from './components/DeciTask';
+import Thanawya from './components/Thanawya';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'decitask'>(() => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'decitask' | 'thanawya'>(() => {
     if (window.location.pathname === '/ultraproxy') return 'ultraproxy';
     if (window.location.pathname === '/decitask' || window.location.pathname === '/deci') return 'decitask';
+    if (window.location.pathname === '/thanawya') return 'thanawya';
     return 'dashboard';
   });
   const [swRegistered, setSwRegistered] = useState(false);
@@ -25,6 +27,8 @@ const App: React.FC = () => {
         setCurrentView('ultraproxy');
       } else if (window.location.pathname === '/decitask' || window.location.pathname === '/deci') {
         setCurrentView('decitask');
+      } else if (window.location.pathname === '/thanawya') {
+        setCurrentView('thanawya');
       } else {
         setCurrentView('dashboard');
       }
@@ -182,6 +186,9 @@ const App: React.FC = () => {
     } else if (id === 'decitask') {
       window.history.pushState({}, '', '/decitask');
       setCurrentView('decitask');
+    } else if (id === 'thanawya') {
+      window.history.pushState({}, '', '/thanawya');
+      setCurrentView('thanawya');
     }
   };
 
@@ -208,6 +215,11 @@ const App: React.FC = () => {
       )}
       {currentView === 'decitask' && (
         <DeciTask 
+          onBack={handleBack}
+        />
+      )}
+      {currentView === 'thanawya' && (
+        <Thanawya 
           onBack={handleBack}
         />
       )}
