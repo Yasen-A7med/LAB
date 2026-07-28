@@ -123,10 +123,19 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
     workerRef.current.postMessage({ type: 'SEARCH', options: opts });
   }, [isReady, query, statusFilter, sortBy, page]);
 
-  // Debounced search on input/filter change
+  // Search trigger behavior:
+  // On desktop: auto-search on input/filter change.
+  // On mobile (< 640px): wait for user to click Search or press Enter!
   useEffect(() => {
     if (!isReady) return;
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+
+    if (isMobile) {
+      // On mobile devices, only auto-trigger if statusFilter/sortBy changed, NOT on text typing
+      return;
+    }
 
     searchDebounceRef.current = setTimeout(() => {
       if (query.trim() || statusFilter !== 'all') {
@@ -136,12 +145,23 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
         setResults([]);
         setTotalMatches(0);
       }
-    }, 150);
+    }, 180);
 
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
   }, [query, statusFilter, sortBy, isReady, dispatchSearch]);
+
+  // When status filter or sort by changes on mobile, trigger search
+  const handleStatusFilterChange = (status: string) => {
+    setStatusFilter(status);
+    dispatchSearch({ statusFilter: status, page: 1 });
+  };
+
+  const handleSortByChange = (sort: typeof sortBy) => {
+    setSortBy(sort);
+    dispatchSearch({ sortBy: sort, page: 1 });
+  };
 
   // Instant In-Result Sub-Filter Memo
   const displayedResults = useMemo(() => {
@@ -298,7 +318,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
             {/* Mobile-Optimized Search Card Layout */}
             <div className="bg-[#0b0b14] border border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-xl space-y-3 focus-within:border-indigo-500/60 focus-within:shadow-[0_0_24px_rgba(99,102,241,0.2)] transition-all">
               
-              {/* Row 1: Full-Width Search Input (prevents clipping on mobile!) */}
+              {/* Row 1: Full-Width Search Input */}
               <div className="flex items-center gap-3 bg-white/[0.03] border border-white/5 rounded-xl px-3.5 py-1">
                 <Search size={22} className="text-indigo-400 shrink-0" />
                 <input
@@ -306,6 +326,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && dispatchSearch({ page: 1 })}
                   placeholder="اكتب الاسم أو رقم الجلوس..."
                   className="w-full bg-transparent border-none outline-none text-white text-base py-3 placeholder:text-gray-500 leading-normal"
                   autoComplete="off"
@@ -335,7 +356,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                   disabled={searching}
                   className="flex-1 py-3 px-6 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 hover:brightness-110 text-white font-extrabold text-sm rounded-xl transition-all disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-2 shadow-md shadow-indigo-500/20"
                 >
-                  {searching ? <Loader2 size={18} className="animate-spin" /> : <span>بحث في النتائج</span>}
+                  {searching ? <Loader2 size={18} className="animate-spin" /> : <span>بحث</span>}
                 </motion.button>
 
                 <motion.button
@@ -358,7 +379,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
             {/* Quick Status Chips */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
               <button
-                onClick={() => setStatusFilter('all')}
+                onClick={() => handleStatusFilterChange('all')}
                 className={`px-4 py-2 rounded-xl border font-semibold shrink-0 transition-all min-h-[38px] ${
                   statusFilter === 'all'
                     ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm shadow-indigo-500/30'
@@ -370,7 +391,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
               {casesList.map((c, i) => (
                 <button
                   key={i}
-                  onClick={() => setStatusFilter(c)}
+                  onClick={() => handleStatusFilterChange(c)}
                   className={`px-4 py-2 rounded-xl border font-semibold shrink-0 transition-all min-h-[38px] ${
                     statusFilter === c
                       ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm shadow-indigo-500/30'
@@ -396,7 +417,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                     <span className="text-gray-400 font-semibold">ترتيب النتائج حسب</span>
                     <select
                       value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
+                      onChange={(e) => handleSortByChange(e.target.value as any)}
                       className="bg-[#141424] border border-white/10 rounded-lg px-3 py-2 text-white font-semibold outline-none focus:border-indigo-500 text-xs"
                     >
                       <option value="rel">الأكثر صلة وتطابقاً</option>
