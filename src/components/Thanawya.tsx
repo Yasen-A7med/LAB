@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { 
   ArrowRight, Search, X, ChevronLeft, ChevronRight, 
@@ -19,26 +19,6 @@ const PER_PAGE = 20;
 
 // Spring physics config per Design Skill directive
 const SPRING_TRANSITION: Transition = { type: "spring", stiffness: 380, damping: 32 };
-
-// Normalization for in-result sub-filter
-const ARABIC_NORM_MAP: Record<string, string> = {
-  'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا',
-  'ى': 'ي', 'ئ': 'ي',
-  'ة': 'ه',
-  'ؤ': 'و',
-  'ٍ': '', 'ٌ': '', 'ً': '', 'َ': '', 'ُ': '', 'ِ': '', 'ّ': '', 'ْ': '',
-  'ـ': ''
-};
-
-function normalizeText(str: string): string {
-  if (!str) return '';
-  let res = '';
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    res += ch in ARABIC_NORM_MAP ? ARABIC_NORM_MAP[ch] : ch;
-  }
-  return res.replace(/\s+/g, ' ').trim().toLowerCase();
-}
 
 export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
   // Worker & Progress State
@@ -69,6 +49,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const subFilterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize Web Worker
   useEffect(() => {
@@ -110,6 +91,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
 
     const opts: SearchOptions = {
       query: overrideOpts?.query !== undefined ? overrideOpts.query : query,
+      subQuery: overrideOpts?.subQuery !== undefined ? overrideOpts.subQuery : subFilterText,
       statusFilter: overrideOpts?.statusFilter !== undefined ? overrideOpts.statusFilter : statusFilter,
       minScore: null,
       maxScore: null,
@@ -121,21 +103,15 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
 
     setSearching(true);
     workerRef.current.postMessage({ type: 'SEARCH', options: opts });
-  }, [isReady, query, statusFilter, sortBy, page]);
+  }, [isReady, query, subFilterText, statusFilter, sortBy, page]);
 
-  // Search trigger behavior:
-  // On desktop: auto-search on input/filter change.
-  // On mobile (< 640px): wait for user to click Search or press Enter!
+  // Main search debounce effect (desktop auto-search, mobile button/enter)
   useEffect(() => {
     if (!isReady) return;
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-
-    if (isMobile) {
-      // On mobile devices, only auto-trigger if statusFilter/sortBy changed, NOT on text typing
-      return;
-    }
+    if (isMobile) return;
 
     searchDebounceRef.current = setTimeout(() => {
       if (query.trim() || statusFilter !== 'all') {
@@ -152,33 +128,27 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
     };
   }, [query, statusFilter, sortBy, isReady, dispatchSearch]);
 
-  // When status filter or sort by changes on mobile, trigger search
+  // Debounce sub-filter changes across entire dataset in worker!
+  const handleSubFilterChange = (val: string) => {
+    setSubFilterText(val);
+    if (subFilterDebounceRef.current) clearTimeout(subFilterDebounceRef.current);
+
+    subFilterDebounceRef.current = setTimeout(() => {
+      dispatchSearch({ subQuery: val, page: 1 });
+    }, 120);
+  };
+
+  // Status Filter Change
   const handleStatusFilterChange = (status: string) => {
     setStatusFilter(status);
     dispatchSearch({ statusFilter: status, page: 1 });
   };
 
+  // Sort Change
   const handleSortByChange = (sort: typeof sortBy) => {
     setSortBy(sort);
     dispatchSearch({ sortBy: sort, page: 1 });
   };
-
-  // Instant In-Result Sub-Filter Memo
-  const displayedResults = useMemo(() => {
-    if (!subFilterText.trim()) return results;
-    const tokens = normalizeText(subFilterText).split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return results;
-
-    return results.filter(({ rec }) => {
-      const seat = rec[0];
-      const name = normalizeText(rec[1]);
-      const caseName = normalizeText(casesList[rec[3]] || '');
-      const degreeStr = rec[2];
-      const combined = `${name} ${seat} ${caseName} ${degreeStr}`;
-
-      return tokens.every(t => combined.includes(t));
-    });
-  }, [results, subFilterText, casesList]);
 
   // Copy result text
   const handleCopyResult = (rec: Record4) => {
@@ -435,28 +405,28 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
             {searched && (
               <div className="space-y-4 pt-2">
                 
-                {/* Result Bar & Instant In-Result Sub-Filter */}
+                {/* Result Bar & Instant Sub-Filter Across All Matches */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0b0b14] border border-white/10 rounded-2xl p-3">
                   <div className="text-xs text-gray-400 font-semibold">
                     تم العثور على <strong className="text-indigo-400 font-extrabold text-sm">{totalMatches.toLocaleString('ar-EG')}</strong> نتيجة
                   </div>
 
-                  {/* Instant In-Result Sub-Filter Input */}
-                  {results.length > 1 && (
-                    <div className="flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-1.5 flex-1 max-w-full sm:max-w-[280px]">
+                  {/* Instant Sub-Filter Input (searches across all matching candidates in dataset!) */}
+                  {totalMatches > 1 && (
+                    <div className="flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-1.5 flex-1 max-w-full sm:max-w-[300px]">
                       <Filter size={14} className="text-indigo-400 shrink-0" />
                       <input
                         type="text"
                         value={subFilterText}
-                        onChange={(e) => setSubFilterText(e.target.value)}
-                        placeholder="فلترة سريعة داخل النتائج..."
+                        onChange={(e) => handleSubFilterChange(e.target.value)}
+                        placeholder="فلترة وتعمق داخل كل النتائج..."
                         className="w-full bg-transparent border-none outline-none text-white text-xs py-1 placeholder:text-gray-500"
                         autoComplete="off"
                         spellCheck={false}
                       />
                       {subFilterText && (
                         <button
-                          onClick={() => setSubFilterText('')}
+                          onClick={() => handleSubFilterChange('')}
                           className="text-gray-400 hover:text-white"
                         >
                           <X size={14} />
@@ -466,8 +436,8 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                   )}
                 </div>
 
-                {/* Cards List with Framer Motion spring physics */}
-                {displayedResults.length > 0 ? (
+                {/* Cards List */}
+                {results.length > 0 ? (
                   <>
                     <motion.div 
                       className="grid grid-cols-1 md:grid-cols-2 gap-3"
@@ -477,7 +447,7 @@ export const Thanawya: React.FC<ThanawayaProps> = ({ onBack }) => {
                         visible: { transition: { staggerChildren: 0.04 } }
                       }}
                     >
-                      {displayedResults.map(({ rec }, i) => {
+                      {results.map(({ rec }, i) => {
                         const seat = rec[0];
                         const name = rec[1];
                         const scoreStr = rec[2];

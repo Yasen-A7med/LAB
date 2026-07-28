@@ -14,6 +14,7 @@ export interface CompactData {
 
 export interface SearchOptions {
   query: string;
+  subQuery?: string; // Instant sub-filter applied across ALL search hits
   statusFilter: string; // 'all' or specific case
   minScore: number | null;
   maxScore: number | null;
@@ -246,8 +247,9 @@ function handleSearch(opts: SearchOptions) {
   if (!IS_READY) return;
   const start = performance.now();
   const rawQ = opts.query.trim();
+  const rawSubQ = (opts.subQuery || '').trim();
 
-  if (!rawQ && opts.statusFilter === 'all' && opts.minScore === null && opts.maxScore === null) {
+  if (!rawQ && !rawSubQ && opts.statusFilter === 'all' && opts.minScore === null && opts.maxScore === null) {
     self.postMessage({
       type: 'SEARCH_RESULTS',
       hitsCount: 0,
@@ -265,6 +267,9 @@ function handleSearch(opts: SearchOptions) {
   const normQ = normalizeArabic(rawQ, opts.matchMode === 'fuzzy');
   const tokens = normQ.split(/\s+/).filter(Boolean);
 
+  const normSubQ = normalizeArabic(rawSubQ, opts.matchMode === 'fuzzy');
+  const subTokens = normSubQ.split(/\s+/).filter(Boolean);
+
   // Performance optimization: Pre-resolve status filter string to integer index
   const targetCaseIdx = opts.statusFilter !== 'all' ? CASES.indexOf(opts.statusFilter) : -1;
 
@@ -277,35 +282,39 @@ function handleSearch(opts: SearchOptions) {
     const caseIdx = rec[3];
     const degree = DEGREES[i];
 
-    // 1. Status Filter (Integer comparison instead of string lookup)
+    // 1. Status Filter
     if (targetCaseIdx !== -1 && caseIdx !== targetCaseIdx) continue;
 
     // 2. Score Range Filter
     if (opts.minScore !== null && degree < opts.minScore) continue;
     if (opts.maxScore !== null && degree > opts.maxScore) continue;
 
-    // 3. Query Matching
-    if (!rawQ) {
-      matchedIndices.push({ idx: i, score: degree });
-      continue;
-    }
+    // 3. Main Query Matching
+    let isMatched = false;
+    let matchScore = 0;
 
-    if (isNumeric) {
+    if (!rawQ) {
+      isMatched = true;
+      matchScore = degree;
+    } else if (isNumeric) {
       if (seat === rawQ) {
-        matchedIndices.push({ idx: i, score: 10000 });
-        // Performance optimization: Seat numbers are unique 7-digit IDs. Early exit on exact match!
-        if (opts.matchMode === 'exact' || rawQ.length >= 6) break;
+        isMatched = true;
+        matchScore = 10000;
       } else if (opts.matchMode !== 'exact' && seat.startsWith(rawQ)) {
-        matchedIndices.push({ idx: i, score: 5000 + (100 - (seat.length - rawQ.length)) });
+        isMatched = true;
+        matchScore = 5000 + (100 - (seat.length - rawQ.length));
       } else if (opts.matchMode !== 'exact' && seat.includes(rawQ)) {
-        matchedIndices.push({ idx: i, score: 1000 });
+        isMatched = true;
+        matchScore = 1000;
       }
     } else {
       if (opts.matchMode === 'exact') {
         if (nameNorm === normQ) {
-          matchedIndices.push({ idx: i, score: 1000 });
+          isMatched = true;
+          matchScore = 1000;
         } else if (nameNorm.includes(normQ)) {
-          matchedIndices.push({ idx: i, score: 800 });
+          isMatched = true;
+          matchScore = 800;
         }
       } else {
         let tokenMatches = 0;
@@ -317,7 +326,6 @@ function handleSearch(opts: SearchOptions) {
             tokenMatches++;
             exactTokenMatches++;
           } else if (opts.matchMode === 'fuzzy') {
-            // Lazy tokenize candidate name only when fuzzy match fallback is needed
             if (!nameTokens) nameTokens = nameNorm.split(' ');
             for (const nt of nameTokens) {
               if (nt.length >= 3 && Math.abs(nt.length - t.length) <= 1) {
@@ -331,15 +339,37 @@ function handleSearch(opts: SearchOptions) {
         }
 
         if (tokenMatches === tokens.length) {
-          let relScore = exactTokenMatches * 200 + tokenMatches * 100;
-          if (nameNorm.startsWith(normQ)) relScore += 300;
-          matchedIndices.push({ idx: i, score: relScore });
+          isMatched = true;
+          matchScore = exactTokenMatches * 200 + tokenMatches * 100;
+          if (nameNorm.startsWith(normQ)) matchScore += 300;
         }
       }
     }
+
+    if (!isMatched) continue;
+
+    // 4. In-Result Sub-Filter Matching (searches across ALL matching candidates in dataset!)
+    if (subTokens.length > 0) {
+      let subMatched = true;
+      const combinedText = `${nameNorm} ${seat} ${CASES[caseIdx]} ${degree}`;
+      for (const st of subTokens) {
+        if (!combinedText.includes(st)) {
+          subMatched = false;
+          break;
+        }
+      }
+      if (!subMatched) continue;
+    }
+
+    matchedIndices.push({ idx: i, score: matchScore });
+
+    // Early exit if exact 7-digit seat ID found and no sub-filter
+    if (isNumeric && seat === rawQ && subTokens.length === 0 && (opts.matchMode === 'exact' || rawQ.length >= 6)) {
+      break;
+    }
   }
 
-  // 4. Sorting Results
+  // 5. Sorting Results
   if (opts.sortBy === 'score_desc') {
     matchedIndices.sort((a, b) => DEGREES[b.idx] - DEGREES[a.idx]);
   } else if (opts.sortBy === 'score_asc') {
