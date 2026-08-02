@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Globe, 
@@ -11,7 +11,6 @@ import {
   ExternalLink,
   Check,
   Zap,
-  Search,
   ShieldCheck
 } from 'lucide-react';
 import AnimatedLiquidBackground from './AnimatedLiquidBackground';
@@ -27,7 +26,6 @@ interface ProjectCardData {
   desc: string;
   icon: React.ElementType;
   tag: string;
-  category: 'suite' | 'tool' | 'proxy' | 'edu';
   iconColor: string;
   iconBg: string;
   glowColor: string;
@@ -59,7 +57,6 @@ const projects: ProjectCardData[] = [
     desc: 'Event Management Suite, Guest Invitations, QR Ticket Verification & Automated Certificate Issuance.',
     icon: Cpu,
     tag: 'Event Suite',
-    category: 'suite',
     iconColor: 'text-amber-400',
     iconBg: 'bg-amber-500/10 border-amber-500/20',
     glowColor: 'group-hover:shadow-amber-500/20 group-hover:border-amber-500/40',
@@ -72,7 +69,6 @@ const projects: ProjectCardData[] = [
     desc: 'Create smart dynamic QR codes with fixed redirect links. Update destination targets anytime using password protection without altering the QR image.',
     icon: QrCode,
     tag: 'Smart Tools',
-    category: 'tool',
     iconColor: 'text-cyan-400',
     iconBg: 'bg-cyan-500/10 border-cyan-500/20',
     glowColor: 'group-hover:shadow-cyan-500/20 group-hover:border-cyan-500/40',
@@ -85,7 +81,6 @@ const projects: ProjectCardData[] = [
     desc: 'High-speed web emulator with XOR obfuscation. Access web resources freely without CORS restrictions or ISP blocking.',
     icon: Globe,
     tag: 'Network Proxy',
-    category: 'proxy',
     iconColor: 'text-sky-400',
     iconBg: 'bg-sky-500/10 border-sky-500/20',
     glowColor: 'group-hover:shadow-sky-500/20 group-hover:border-sky-500/40',
@@ -98,7 +93,6 @@ const projects: ProjectCardData[] = [
     desc: 'استعلم عن نتيجة الثانوية العامة 2026 بالاسم أو رقم الجلوس. محرك بحث ذكي وسريع باللغة العربية.',
     icon: GraduationCap,
     tag: 'Educational Portal',
-    category: 'edu',
     iconColor: 'text-violet-400',
     iconBg: 'bg-violet-500/10 border-violet-500/20',
     glowColor: 'group-hover:shadow-violet-500/20 group-hover:border-violet-500/40',
@@ -109,8 +103,6 @@ const projects: ProjectCardData[] = [
 
 const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -119,18 +111,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
       setCopiedItem(null);
     }, 2000);
   };
-
-  const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
-      const matchesSearch = 
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.tag.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesCat = selectedCategory === 'all' || p.category === selectedCategory;
-      return matchesSearch && matchesCat;
-    });
-  }, [searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen min-h-[100dvh] bg-[#030308] text-white flex flex-col relative overflow-hidden select-none font-sans">
@@ -209,8 +189,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
       </header>
 
       {/* ──────────────── Hero Section ──────────────── */}
-      <section className="relative z-10 flex-1 flex flex-col items-center justify-center px-5 sm:px-8 py-10 sm:py-14 text-center">
-        <div className="max-w-3xl w-full flex flex-col items-center gap-5 sm:gap-6">
+      <section className="relative z-10 flex-1 flex flex-col items-center justify-center px-5 sm:px-8 py-8 sm:py-12 text-center">
+        <div className="max-w-3xl w-full flex flex-col items-center gap-4 sm:gap-5">
           
           {/* Tech Badges Pill */}
           <motion.div 
@@ -235,146 +215,80 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
             Digital Frontline<span className="text-amber-400">.</span>
           </motion.h1>
 
-          {/* Hero Subtitle */}
-          <motion.p 
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-sm sm:text-lg text-gray-400 font-light leading-relaxed max-w-xl"
-          >
-            A high-performance minimalist sandbox by <span className="text-white font-medium">Yashoo</span> — orchestrating web applications, event suites & proxy engines.
-          </motion.p>
-
-          {/* Interactive Search & Filter Bar */}
-          <motion.div 
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="w-full max-w-lg mt-2 flex flex-col sm:flex-row items-center gap-3"
-          >
-            {/* Search Input */}
-            <div className="relative w-full">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search projects or tools..."
-                className="w-full bg-[#080810]/90 border border-white/10 focus:border-amber-400/60 rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white outline-none transition-all placeholder:text-gray-500 shadow-xl backdrop-blur-xl"
-              />
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1 bg-[#080810]/90 p-1 rounded-2xl border border-white/10 shrink-0 text-xs">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-2 rounded-xl font-medium transition-all ${
-                  selectedCategory === 'all' ? 'bg-amber-500 text-black font-bold shadow-md' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setSelectedCategory('suite')}
-                className={`px-3 py-2 rounded-xl font-medium transition-all ${
-                  selectedCategory === 'suite' ? 'bg-amber-500 text-black font-bold shadow-md' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Suites
-              </button>
-              <button
-                onClick={() => setSelectedCategory('tool')}
-                className={`px-3 py-2 rounded-xl font-medium transition-all ${
-                  selectedCategory === 'tool' ? 'bg-amber-500 text-black font-bold shadow-md' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Tools
-              </button>
-            </div>
-          </motion.div>
-
         </div>
       </section>
 
       {/* ──────────────── Project Cards Section ──────────────── */}
       <section className="relative z-10 w-full max-w-6xl mx-auto px-5 sm:px-8 pb-16 sm:pb-24">
-        
-        {filteredProjects.length === 0 ? (
-          <div className="py-16 text-center text-gray-500 text-sm">
-            No matching projects found for "{searchQuery}".
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
-            {filteredProjects.map((p, index) => {
-              const IconComponent = p.icon;
-              return (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.08 }}
-                  whileHover={{ y: -6, scale: 1.01 }}
-                  whileTap={{ scale: 0.985 }}
-                  onClick={() => onLaunch(p.id)}
-                  className={`group relative bg-[#0a0a14]/80 border border-white/[0.08] hover:border-white/20 shadow-2xl rounded-3xl p-6 cursor-pointer flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-2xl ${p.glowColor}`}
-                >
-                  {/* Subtle Card Ambient Glow Accent */}
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] group-hover:bg-amber-500/5 rounded-full blur-3xl transition-all duration-500 pointer-events-none" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+          {projects.map((p, index) => {
+            const IconComponent = p.icon;
+            return (
+              <motion.div
+                key={p.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.08 }}
+                whileHover={{ y: -6, scale: 1.01 }}
+                whileTap={{ scale: 0.985 }}
+                onClick={() => onLaunch(p.id)}
+                className={`group relative bg-[#0a0a14]/80 border border-white/[0.08] hover:border-white/20 shadow-2xl rounded-3xl p-6 cursor-pointer flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-2xl ${p.glowColor}`}
+              >
+                {/* Subtle Card Ambient Glow Accent */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] group-hover:bg-amber-500/5 rounded-full blur-3xl transition-all duration-500 pointer-events-none" />
 
-                  <div>
-                    {/* Top Icon & Tag */}
-                    <div className="flex items-center justify-between mb-5">
-                      <div className={`w-11 h-11 rounded-2xl ${p.iconBg} border flex items-center justify-center ${p.iconColor} shrink-0 group-hover:scale-105 transition-transform`}>
-                        <IconComponent size={22} />
-                      </div>
-                      
-                      <div className="w-8 h-8 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:bg-amber-500 group-hover:text-black group-hover:border-amber-400 transition-all shrink-0">
-                        <ArrowUpRight size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                      </div>
+                <div>
+                  {/* Top Icon & Tag */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div className={`w-11 h-11 rounded-2xl ${p.iconBg} border flex items-center justify-center ${p.iconColor} shrink-0 group-hover:scale-105 transition-transform`}>
+                      <IconComponent size={22} />
                     </div>
-
-                    {/* Tag Badge */}
-                    <div className="mb-2.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 group-hover:text-white transition-colors bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
-                        {p.tag}
-                      </span>
+                    
+                    <div className="w-8 h-8 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:bg-amber-500 group-hover:text-black group-hover:border-amber-400 transition-all shrink-0">
+                      <ArrowUpRight size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                     </div>
-
-                    {/* Title */}
-                    <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-white mb-2.5 group-hover:text-amber-400 transition-colors">
-                      {p.title}
-                    </h3>
-
-                    {/* Description */}
-                    <p className="text-xs text-gray-400 leading-relaxed font-light mb-6 line-clamp-3">
-                      {p.desc}
-                    </p>
                   </div>
 
-                  {/* Card Footer */}
-                  <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs">
-                    <span className="font-semibold text-gray-300 group-hover:text-white transition-colors flex items-center gap-1">
-                      <span>{p.btnText}</span>
-                      <span className="text-amber-400">↗</span>
+                  {/* Tag Badge */}
+                  <div className="mb-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 group-hover:text-white transition-colors bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
+                      {p.tag}
                     </span>
-                    {p.badgeText && (
-                      <span className="text-[10px] font-mono text-gray-500 group-hover:text-gray-400">
-                        {p.badgeText}
-                      </span>
-                    )}
                   </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
 
+                  {/* Title */}
+                  <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-white mb-2.5 group-hover:text-amber-400 transition-colors">
+                    {p.title}
+                  </h3>
+
+                  {/* Description */}
+                  <p className="text-xs text-gray-400 leading-relaxed font-light mb-6 line-clamp-3">
+                    {p.desc}
+                  </p>
+                </div>
+
+                {/* Card Footer */}
+                <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs">
+                  <span className="font-semibold text-gray-300 group-hover:text-white transition-colors flex items-center gap-1">
+                    <span>{p.btnText}</span>
+                    <span className="text-amber-400">↗</span>
+                  </span>
+                  {p.badgeText && (
+                    <span className="text-[10px] font-mono text-gray-500 group-hover:text-gray-400">
+                      {p.badgeText}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </section>
 
       {/* ──────────────── Footer ──────────────── */}
       <footer className="relative z-10 w-full border-t border-white/[0.08] bg-[#020205]/90 backdrop-blur-2xl">
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-6 flex items-center justify-between">
           
           {/* Left Contact & Links */}
           <div className="flex flex-col gap-2">
@@ -431,11 +345,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
               </a>
 
             </div>
-          </div>
-
-          {/* Right Copyright */}
-          <div className="text-xs text-gray-500 font-mono">
-            © {new Date().getFullYear()} Yashoo LAB • Built with Framer Motion & Tailwind
           </div>
 
         </div>
