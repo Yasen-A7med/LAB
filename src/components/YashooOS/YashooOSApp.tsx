@@ -518,8 +518,8 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
           <div className="h-5 w-[1px] bg-white/10 hidden sm:block" />
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Cpu size={18} />
+            <div className="w-8 h-8 rounded-xl border border-white/15 overflow-hidden shadow-lg shrink-0 bg-black/40">
+              <img src="/Logo.png" alt="Yashoo Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <div className="flex items-center gap-2">

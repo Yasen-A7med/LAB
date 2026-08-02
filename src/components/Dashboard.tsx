@@ -10,7 +10,6 @@ import {
   Phone, 
   ExternalLink,
   Check,
-  Sparkles,
   Zap,
   Search,
   ShieldCheck
@@ -165,8 +164,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
           transition={{ duration: 0.5 }}
           className="flex items-center gap-3 cursor-default group"
         >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/20 via-purple-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center text-white shadow-lg group-hover:border-white/25 transition-all">
-            <Sparkles size={20} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+          <div className="w-10 h-10 rounded-2xl border border-white/15 overflow-hidden shadow-lg group-hover:border-white/30 transition-all shrink-0 bg-black/40">
+            <img src="/Logo.png" alt="Yashoo LAB Logo" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
           </div>
           <div>
             <span className="font-extrabold text-xl sm:text-2xl tracking-tight text-white flex items-center gap-1.5">
