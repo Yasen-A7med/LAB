@@ -10,7 +10,6 @@ import {
   Phone, 
   ExternalLink,
   Check,
-  Zap,
   ShieldCheck
 } from 'lucide-react';
 import AnimatedLiquidBackground from './AnimatedLiquidBackground';
@@ -101,7 +100,7 @@ const projects: ProjectCardData[] = [
   },
 ];
 
-const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered: _swRegistered }) => {
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
 
   const handleCopy = (text: string, label: string) => {
@@ -144,15 +143,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
           transition={{ duration: 0.5 }}
           className="flex items-center gap-3 cursor-default group"
         >
-          <div className="w-10 h-10 rounded-2xl border border-white/15 overflow-hidden shadow-lg group-hover:border-white/30 transition-all shrink-0 bg-black/40">
-            <img src="/Logo.png" alt="Yashoo LAB Logo" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-          </div>
-          <div>
-            <span className="font-extrabold text-xl sm:text-2xl tracking-tight text-white flex items-center gap-1.5">
-              Yashoo <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-purple-400 to-cyan-400 font-light">LAB</span>
-            </span>
-            <span className="text-[10px] text-gray-500 tracking-wider uppercase font-mono block">v2.5 High-Perf OS</span>
-          </div>
+          <span className="font-extrabold text-xl sm:text-2xl tracking-tight text-white flex items-center gap-1.5">
+            Yashoo <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-purple-400 to-cyan-400 font-light">LAB</span>
+          </span>
         </motion.div>
 
         {/* Header Right Actions */}
@@ -174,17 +167,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
             <span className="hidden sm:inline">GitHub</span>
             <ArrowUpRight size={13} className="text-gray-400 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
           </a>
-
-          {/* Engine Status Badge */}
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-xl">
-            <div className="relative flex items-center justify-center w-2 h-2">
-              <span className={`absolute w-3 h-3 rounded-full ${swRegistered ? 'bg-emerald-400' : 'bg-amber-400'} animate-ping opacity-75`} />
-              <span className={`relative w-2 h-2 rounded-full ${swRegistered ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-            </div>
-            <span className="text-[11px] font-semibold tracking-wider uppercase text-gray-300 hidden sm:inline">
-              {swRegistered ? 'Engine Online' : 'Active'}
-            </span>
-          </div>
         </motion.div>
       </header>
 
@@ -192,19 +174,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
       <section className="relative z-10 flex-1 flex flex-col items-center justify-center px-5 sm:px-8 py-8 sm:py-12 text-center">
         <div className="max-w-3xl w-full flex flex-col items-center gap-4 sm:gap-5">
           
-          {/* Tech Badges Pill */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-2xl text-xs font-medium text-gray-300"
-          >
-            <Zap size={14} className="text-amber-400" />
-            <span>Next-Gen Web Architecture</span>
-            <span className="text-gray-600">•</span>
-            <span className="text-emerald-400 font-mono text-[11px]">Vite + Supabase</span>
-          </motion.div>
-
           {/* Hero Main Headline */}
           <motion.h1 
             initial={{ opacity: 0, y: 15 }}
@@ -212,8 +181,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-tight"
           >
-            Digital Frontline<span className="text-amber-400">.</span>
+            Yashoo <span className="text-amber-400">LAB</span>
           </motion.h1>
+
+          {/* Hero Description */}
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-sm sm:text-base md:text-lg text-gray-300 max-w-2xl leading-relaxed font-medium"
+          >
+            مختبر Yasen Ahmed ومستودع لجميع تجاربه ومشاريعه المتاحة للجميع
+          </motion.p>
 
         </div>
       </section>
