@@ -42,7 +42,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   // Projects state
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(DEFAULT_PROJECT_ID);
-  const [selectedProjectName, setSelectedProjectName] = useState<string>('Yashoo OS Main');
+  const [selectedProjectName, setSelectedProjectName] = useState<string>('Yashoo ES Main');
   const [newProjectName, setNewProjectName] = useState('');
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [creatingProject, setCreatingProject] = useState(false);
@@ -321,7 +321,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">Yashoo OS</span>
+                <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">Yashoo ES</span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
                   v1.0
                 </span>

@@ -20,14 +20,14 @@ interface DashboardProps {
 
 const projects = [
   {
-    id: 'yashoo-os',
-    title: 'Yashoo OS',
+    id: 'yashoo-es',
+    title: 'Yashoo ES',
     desc: 'Event Management Suite, Guest Invitations, QR Ticket Verification & Automated Certificate Issuance.',
     icon: Cpu,
-    tag: 'Management OS',
+    tag: 'Event Suite',
     iconColor: 'text-amber-400',
     iconBg: 'bg-amber-500/10 border-amber-500/20',
-    btnText: 'Open Yashoo OS ↗'
+    btnText: 'Open Yashoo ES ↗'
   },
   {
     id: 'qr',

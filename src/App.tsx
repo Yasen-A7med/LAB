@@ -7,12 +7,12 @@ import { RedirectHandler } from './components/DynamicQR/RedirectHandler';
 import YashooOSApp from './components/YashooOS/YashooOSApp';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-os'>(() => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es'>(() => {
     const path = window.location.pathname;
     if (path === '/ultraproxy') return 'ultraproxy';
     if (path === '/thanawya') return 'thanawya';
     if (path === '/qr') return 'qr';
-    if (path === '/yashoo-os' || path === '/os') return 'yashoo-os';
+    if (path === '/yashoo-es' || path === '/es' || path === '/yashoo-os' || path === '/os') return 'yashoo-es';
     if (path.startsWith('/r/')) return 'redirect';
     return 'dashboard';
   });
@@ -36,8 +36,8 @@ const App: React.FC = () => {
         setCurrentView('thanawya');
       } else if (path === '/qr') {
         setCurrentView('qr');
-      } else if (path === '/yashoo-os' || path === '/os') {
-        setCurrentView('yashoo-os');
+      } else if (path === '/yashoo-es' || path === '/es' || path === '/yashoo-os' || path === '/os') {
+        setCurrentView('yashoo-es');
       } else if (path.startsWith('/r/')) {
         setCurrentView('redirect');
       } else {
@@ -174,9 +174,9 @@ const App: React.FC = () => {
     } else if (id === 'qr') {
       window.history.pushState({}, '', '/qr');
       setCurrentView('qr');
-    } else if (id === 'yashoo-os') {
-      window.history.pushState({}, '', '/yashoo-os');
-      setCurrentView('yashoo-os');
+    } else if (id === 'yashoo-es') {
+      window.history.pushState({}, '', '/yashoo-es');
+      setCurrentView('yashoo-es');
     }
   };
 
@@ -211,7 +211,7 @@ const App: React.FC = () => {
           onBack={handleBack}
         />
       )}
-      {currentView === 'yashoo-os' && (
+      {currentView === 'yashoo-es' && (
         <YashooOSApp
           onBack={handleBack}
         />
