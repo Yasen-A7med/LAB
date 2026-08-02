@@ -23,6 +23,7 @@ import { QRCard } from './QRCard';
 import { CreateQRModal } from './CreateQRModal';
 import { EditQRModal } from './EditQRModal';
 import { DeleteQRModal } from './DeleteQRModal';
+import { QRInsightsModal } from './QRInsightsModal';
 
 interface DynamicQRStudioProps {
   onBack: () => void;
@@ -37,6 +38,7 @@ export const DynamicQRStudio: React.FC<DynamicQRStudioProps> = ({ onBack }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<QRCodeItem | null>(null);
   const [deletingItem, setDeletingItem] = useState<QRCodeItem | null>(null);
+  const [insightsItem, setInsightsItem] = useState<QRCodeItem | null>(null);
 
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -161,7 +163,7 @@ export const DynamicQRStudio: React.FC<DynamicQRStudioProps> = ({ onBack }) => {
               Dynamic QR System.
             </h1>
             <p className="text-sm text-gray-400 font-light mt-2 max-w-xl">
-              Create QR codes with fixed redirect links. Update the destination URL at any time using your password without changing the QR image.
+              Create QR codes with fixed redirect links. Update destination URLs anytime using your password, and inspect full scan analytics & graphs.
             </p>
           </div>
 
@@ -259,6 +261,7 @@ export const DynamicQRStudio: React.FC<DynamicQRStudioProps> = ({ onBack }) => {
                   item={item}
                   onEdit={(target) => setEditingItem(target)}
                   onDelete={(target) => setDeletingItem(target)}
+                  onInsights={(target) => setInsightsItem(target)}
                   onCopyToast={showToast}
                 />
               ))}
@@ -294,6 +297,12 @@ export const DynamicQRStudio: React.FC<DynamicQRStudioProps> = ({ onBack }) => {
         item={deletingItem}
         onClose={() => setDeletingItem(null)}
         onSubmit={handleDeleteSubmit}
+      />
+
+      <QRInsightsModal
+        isOpen={!!insightsItem}
+        item={insightsItem}
+        onClose={() => setInsightsItem(null)}
       />
     </div>
   );

@@ -12,6 +12,7 @@ import {
   Calendar,
   Globe,
   QrCode as QrIcon,
+  BarChart2,
 } from 'lucide-react';
 import type { QRCodeItem } from '../../types/qr';
 
@@ -19,6 +20,7 @@ interface QRCardProps {
   item: QRCodeItem;
   onEdit: (item: QRCodeItem) => void;
   onDelete: (item: QRCodeItem) => void;
+  onInsights: (item: QRCodeItem) => void;
   onCopyToast: (text: string) => void;
 }
 
@@ -26,6 +28,7 @@ export const QRCard: React.FC<QRCardProps> = ({
   item,
   onEdit,
   onDelete,
+  onInsights,
   onCopyToast,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -156,6 +159,16 @@ export const QRCard: React.FC<QRCardProps> = ({
       {/* Action Buttons Footer */}
       <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
+          {/* Insights Button */}
+          <button
+            onClick={() => onInsights(item)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-semibold border border-cyan-500/20 transition-colors cursor-pointer"
+            title="View Scan Analytics & Insights"
+          >
+            <BarChart2 size={13} />
+            <span>Insights</span>
+          </button>
+
           {/* Download QR PNG Button */}
           <button
             onClick={handleDownload}

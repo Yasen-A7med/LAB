@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { QRCodeItem, CreateQRInput } from '../types/qr';
+import type { QRCodeItem, CreateQRInput, ScanLog } from '../types/qr';
 
 const SUPABASE_URL = 'https://eezlxzursqueluahuulv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlemx4enVyc3F1ZWx1YWh1dWx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MTA0MzIsImV4cCI6MjA5MjM4NjQzMn0.q9Rx5Ul2nkwyijiLgUZ-6oZcMeCmtCj8MpXRwua1T1c';
@@ -27,7 +27,38 @@ export function generateSlug(): string {
   return result;
 }
 
-// LocalStorage helpers
+// Detect device metadata from User Agent
+export function detectDevice(): { device_type: 'Mobile' | 'Desktop' | 'Tablet'; browser: string; os: string } {
+  if (typeof window === 'undefined' || !navigator) {
+    return { device_type: 'Desktop', browser: 'Chrome', os: 'Windows' };
+  }
+  const ua = navigator.userAgent;
+  let device_type: 'Mobile' | 'Desktop' | 'Tablet' = 'Desktop';
+  if (/iPad|Android(?!.*Mobile)|Tablet/i.test(ua)) {
+    device_type = 'Tablet';
+  } else if (/Mobile|iPhone|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) {
+    device_type = 'Mobile';
+  }
+
+  let browser = 'Chrome';
+  if (ua.includes('Firefox')) browser = 'Firefox';
+  else if (ua.includes('SamsungBrowser')) browser = 'Samsung';
+  else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+  else if (ua.includes('Edge') || ua.includes('Edg')) browser = 'Edge';
+  else if (ua.includes('Chrome')) browser = 'Chrome';
+  else if (ua.includes('Safari')) browser = 'Safari';
+
+  let os = 'Unknown';
+  if (ua.includes('Win')) os = 'Windows';
+  else if (ua.includes('Mac')) os = 'macOS';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('Linux')) os = 'Linux';
+
+  return { device_type, browser, os };
+}
+
+// LocalStorage helpers for QR items
 function getLocalQRs(): QRCodeItem[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -45,6 +76,25 @@ function saveLocalQRs(items: QRCodeItem[]): void {
   }
 }
 
+// LocalStorage helpers for scan logs
+function getLocalScanLogs(qrId: string): ScanLog[] {
+  try {
+    const raw = localStorage.getItem(`lab_qr_scan_logs_${qrId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalScanLog(qrId: string, log: ScanLog): void {
+  try {
+    const existing = getLocalScanLogs(qrId);
+    localStorage.setItem(`lab_qr_scan_logs_${qrId}`, JSON.stringify([log, ...existing]));
+  } catch (err) {
+    console.error('Failed to save scan log locally', err);
+  }
+}
+
 // Fetch all QR codes
 export async function fetchQRCodes(): Promise<QRCodeItem[]> {
   try {
@@ -58,7 +108,6 @@ export async function fetchQRCodes(): Promise<QRCodeItem[]> {
       return getLocalQRs();
     }
 
-    // Cache to localStorage
     saveLocalQRs(data as QRCodeItem[]);
     return data as QRCodeItem[];
   } catch (err) {
@@ -83,7 +132,6 @@ export async function getQRCodeById(id: string): Promise<QRCodeItem | null> {
     console.warn('Failed fetching QR code from Supabase:', e);
   }
 
-  // Fallback to local
   const localItems = getLocalQRs();
   return localItems.find(item => item.id === id) || null;
 }
@@ -109,7 +157,6 @@ export async function createQRCode(input: CreateQRInput): Promise<QRCodeItem> {
     updated_at: now,
   };
 
-  // Try saving to Supabase
   try {
     const { error } = await supabase
       .from('qr_codes')
@@ -122,7 +169,6 @@ export async function createQRCode(input: CreateQRInput): Promise<QRCodeItem> {
     console.warn('Supabase insert exception', err);
   }
 
-  // Always save locally
   const current = getLocalQRs();
   saveLocalQRs([newItem, ...current]);
 
@@ -157,7 +203,6 @@ export async function updateQRCode(
     updated_at,
   };
 
-  // Update Supabase
   try {
     await supabase
       .from('qr_codes')
@@ -167,7 +212,6 @@ export async function updateQRCode(
     console.warn('Supabase update error:', err);
   }
 
-  // Update LocalStorage
   const current = getLocalQRs();
   const index = current.findIndex(i => i.id === id);
   if (index !== -1) {
@@ -195,7 +239,6 @@ export async function deleteQRCode(
     return { success: false, error: 'Incorrect password' };
   }
 
-  // Delete from Supabase
   try {
     await supabase
       .from('qr_codes')
@@ -205,33 +248,80 @@ export async function deleteQRCode(
     console.warn('Supabase delete error:', err);
   }
 
-  // Delete from LocalStorage
   const current = getLocalQRs();
   saveLocalQRs(current.filter(i => i.id !== id));
 
   return { success: true };
 }
 
-// Increment scan count
+// Increment scan count and save detailed scan log
 export async function incrementScanCount(id: string): Promise<void> {
   const item = await getQRCodeById(id);
   if (!item) return;
 
   const newCount = (item.scans || 0) + 1;
+  const device = detectDevice();
+  const scanned_at = new Date().toISOString();
 
+  const newLog: ScanLog = {
+    id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    qr_id: id,
+    scanned_at,
+    device_type: device.device_type,
+    browser: device.browser,
+    os: device.os,
+    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    referrer: typeof document !== 'undefined' ? document.referrer : '',
+  };
+
+  // Update total scan counter in Supabase
   try {
     await supabase
       .from('qr_codes')
       .update({ scans: newCount })
       .eq('id', id);
+
+    await supabase
+      .from('qr_scan_logs')
+      .insert([{
+        qr_id: id,
+        scanned_at,
+        device_type: device.device_type,
+        browser: device.browser,
+        os: device.os,
+        user_agent: newLog.user_agent,
+        referrer: newLog.referrer
+      }]);
   } catch (e) {
-    console.warn('Failed updating scan count in Supabase', e);
+    console.warn('Failed updating scan log in Supabase', e);
   }
 
+  // Update local storage items & log cache
   const current = getLocalQRs();
   const index = current.findIndex(i => i.id === id);
   if (index !== -1) {
     current[index].scans = newCount;
     saveLocalQRs(current);
   }
+
+  saveLocalScanLog(id, newLog);
+}
+
+// Fetch scan logs for a QR code
+export async function fetchScanLogs(qrId: string): Promise<ScanLog[]> {
+  try {
+    const { data, error } = await supabase
+      .from('qr_scan_logs')
+      .select('*')
+      .eq('qr_id', qrId)
+      .order('scanned_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      return data as ScanLog[];
+    }
+  } catch (err) {
+    console.warn('Failed to fetch scan logs from Supabase:', err);
+  }
+
+  return getLocalScanLogs(qrId);
 }
