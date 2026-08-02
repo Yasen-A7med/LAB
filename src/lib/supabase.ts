@@ -95,34 +95,60 @@ function saveLocalScanLog(qrId: string, log: ScanLog): void {
   }
 }
 
-// Fetch all QR codes
+// Fetch all QR codes with automatic upload sync of local-only items
 export async function fetchQRCodes(): Promise<QRCodeItem[]> {
   try {
-    const { data, error } = await supabase
+    const { data: remoteData, error } = await supabase
       .from('qr_codes')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error || !data) {
-      console.warn('Supabase fetch failed, fallback to localStorage', error);
-      return getLocalQRs();
+    const localItems = getLocalQRs();
+
+    if (!error && remoteData) {
+      const remoteMap = new Map((remoteData as QRCodeItem[]).map(item => [item.id, item]));
+
+      // Auto-sync any local-only QR codes up to Supabase so other devices can access them
+      const missingInRemote = localItems.filter(local => !remoteMap.has(local.id));
+
+      if (missingInRemote.length > 0) {
+        console.log('Syncing local QRs to Supabase:', missingInRemote);
+        for (const item of missingInRemote) {
+          try {
+            await supabase.from('qr_codes').insert([item]);
+            remoteMap.set(item.id, item);
+          } catch (e) {
+            console.warn('Failed syncing item to Supabase:', item.id, e);
+          }
+        }
+      }
+
+      const mergedList = Array.from(remoteMap.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      saveLocalQRs(mergedList);
+      return mergedList;
     }
 
-    saveLocalQRs(data as QRCodeItem[]);
-    return data as QRCodeItem[];
+    if (error) {
+      console.warn('Supabase fetch error, returning local cache:', error);
+    }
+    return localItems;
   } catch (err) {
-    console.warn('Network error, fallback to localStorage', err);
+    console.warn('Network error during fetchQRCodes:', err);
     return getLocalQRs();
   }
 }
 
 // Get single QR code by ID
 export async function getQRCodeById(id: string): Promise<QRCodeItem | null> {
+  const cleanId = id.trim();
   try {
     const { data, error } = await supabase
       .from('qr_codes')
       .select('*')
-      .eq('id', id)
+      .eq('id', cleanId)
       .single();
 
     if (!error && data) {
@@ -133,7 +159,7 @@ export async function getQRCodeById(id: string): Promise<QRCodeItem | null> {
   }
 
   const localItems = getLocalQRs();
-  return localItems.find(item => item.id === id) || null;
+  return localItems.find(item => item.id === cleanId) || null;
 }
 
 // Create new dynamic QR code
@@ -157,18 +183,21 @@ export async function createQRCode(input: CreateQRInput): Promise<QRCodeItem> {
     updated_at: now,
   };
 
+  // Insert into Supabase cloud database
   try {
     const { error } = await supabase
       .from('qr_codes')
       .insert([newItem]);
 
     if (error) {
-      console.warn('Supabase insert error, saving locally', error);
+      console.error('Supabase cloud insert error:', error);
+      // Fallback save locally, but log warning
     }
   } catch (err) {
-    console.warn('Supabase insert exception', err);
+    console.error('Supabase cloud insert exception:', err);
   }
 
+  // Save to local cache
   const current = getLocalQRs();
   saveLocalQRs([newItem, ...current]);
 
@@ -274,7 +303,6 @@ export async function incrementScanCount(id: string): Promise<void> {
     referrer: typeof document !== 'undefined' ? document.referrer : '',
   };
 
-  // Update total scan counter in Supabase
   try {
     await supabase
       .from('qr_codes')
@@ -296,7 +324,6 @@ export async function incrementScanCount(id: string): Promise<void> {
     console.warn('Failed updating scan log in Supabase', e);
   }
 
-  // Update local storage items & log cache
   const current = getLocalQRs();
   const index = current.findIndex(i => i.id === id);
   if (index !== -1) {
