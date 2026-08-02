@@ -127,19 +127,19 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
       if (!error) {
         setSubscribeStatus({
           success: true,
-          message: 'تم تسجيل إيميلك بنجاح! سيتم إبلاغك فور الانتهاء من الصيانة ✨',
+          message: 'Your email has been subscribed! You will be notified once maintenance is complete. ✨',
         });
         setSubscriberInput('');
       } else {
         setSubscribeStatus({
           success: false,
-          message: 'تعذر حفظ البريد حالياً. يرجى المحاولة مرة أخرى.',
+          message: 'Failed to save email. Please try again.',
         });
       }
     } catch {
       setSubscribeStatus({
         success: false,
-        message: 'حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.',
+        message: 'Network error. Please try again.',
       });
     } finally {
       setSubmittingSubscriber(false);
@@ -413,7 +413,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-gray-300 hover:text-white transition-all text-xs font-medium"
           >
             <ArrowLeft size={16} />
-            <span>العودة للرئيسية</span>
+            <span>Back to Dashboard</span>
           </button>
         </div>
 
@@ -427,15 +427,15 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
 
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-4">
             <ShieldAlert size={14} />
-            <span>قيد الصيانة | Under Maintenance</span>
+            <span>Under Maintenance</span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-3">
-            النظام قيد التحديث والصيانة
+            System Under Maintenance
           </h1>
 
           <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-8 max-w-md">
-            نحن نعمل حالياً على تحسين وتطوير خدمات <strong className="text-white">Yashoo ES</strong> لتقديم أفضل تجربة. أدخل بريدك الإلكتروني ليصلك إشعار فور انتهاء الصيانة وإعادة التشغيل.
+            We are currently upgrading and optimizing <strong className="text-white">Yashoo ES</strong> services to deliver the best experience. Enter your email to be notified as soon as maintenance is complete.
           </p>
 
           {/* Email Registration / Secret Unlock Form */}
@@ -446,8 +446,8 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                 type="text"
                 value={subscriberInput}
                 onChange={(e) => setSubscriberInput(e.target.value)}
-                placeholder="أدخل بريدك الإلكتروني ليصلك إشعار..."
-                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3.5 text-xs sm:text-sm text-white outline-none transition-all placeholder:text-gray-500 text-center sm:text-right"
+                placeholder="Enter your email to get notified..."
+                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3.5 text-xs sm:text-sm text-white outline-none transition-all placeholder:text-gray-500 text-left"
               />
             </div>
 
@@ -461,7 +461,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
               ) : (
                 <>
                   <Bell size={18} />
-                  <span>أبلغني عندما يتم إصلحه</span>
+                  <span>Notify Me When Fixed</span>
                 </>
               )}
             </button>
@@ -578,17 +578,17 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
               }`}
             >
               <Bell size={13} />
-              <span>المسجلين ({subscribers.length})</span>
+              <span>Subscribers ({subscribers.length})</span>
             </button>
           </div>
 
           <button
             onClick={handleLockAdmin}
-            title="تفعيل وضع الصيانة 🔒"
+            title="Lock Maintenance Mode 🔒"
             className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors text-xs font-semibold flex items-center gap-1"
           >
             <Lock size={15} />
-            <span className="hidden sm:inline">قفل</span>
+            <span className="hidden sm:inline">Lock</span>
           </button>
         </div>
       </header>
@@ -1010,8 +1010,8 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
             
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-extrabold text-white">المسجلين للإشعار (Maintenance Subscribers)</h2>
-                <p className="text-xs text-gray-400">قائمة الإيميلات التي سجلت أثناء وضع الصيانة ليصلها إشعار بعد الإصلاح.</p>
+                <h2 className="text-xl font-extrabold text-white">Maintenance Subscribers</h2>
+                <p className="text-xs text-gray-400">List of subscriber emails collected during maintenance mode.</p>
               </div>
 
               <button
@@ -1019,7 +1019,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                 className="px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-gray-300 hover:text-white transition-all text-xs font-medium flex items-center gap-1.5"
               >
                 <RefreshCw size={14} className={loadingSubscribers ? 'animate-spin' : ''} />
-                <span>تحديث القائمة</span>
+                <span>Refresh List</span>
               </button>
             </div>
 
@@ -1030,7 +1030,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                 type="text"
                 value={subscriberSearch}
                 onChange={(e) => setSubscriberSearch(e.target.value)}
-                placeholder="البحث في إيميلات المشتركين..."
+                placeholder="Filter subscribers by email..."
                 className="w-full bg-[#0b0b14]/80 border border-white/10 focus:border-amber-400 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white outline-none"
               />
             </div>
@@ -1038,9 +1038,9 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
             {/* Subscribers Table */}
             <div className="bg-[#0b0b14]/80 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-xl">
               {loadingSubscribers ? (
-                <div className="py-12 text-center text-gray-500 text-xs">جاري تحميل المشتركين...</div>
+                <div className="py-12 text-center text-gray-500 text-xs">Loading subscribers...</div>
               ) : filteredSubscribers.length === 0 ? (
-                <div className="py-12 text-center text-gray-500 text-xs">لا يوجد مشتركون مسجلون حالياً.</div>
+                <div className="py-12 text-center text-gray-500 text-xs">No subscribers registered yet.</div>
               ) : (
                 <div className="divide-y divide-white/[0.06]">
                   {filteredSubscribers.map((s) => (
@@ -1050,7 +1050,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                         <div>
                           <span className="font-semibold text-xs sm:text-sm text-white block">{s.email}</span>
                           <span className="text-[10px] text-gray-500 font-mono">
-                            تاريخ التسجيل: {new Date(s.created_at).toLocaleString('ar-EG')}
+                            Subscribed: {new Date(s.created_at).toLocaleString('en-US')}
                           </span>
                         </div>
                       </div>
@@ -1058,11 +1058,11 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(s.email);
-                          alert(`تم نسخ الإيميل: ${s.email}`);
+                          alert(`Copied email: ${s.email}`);
                         }}
                         className="px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-semibold rounded-lg transition-colors"
                       >
-                        نسخ الإيميل
+                        Copy Email
                       </button>
                     </div>
                   ))}
