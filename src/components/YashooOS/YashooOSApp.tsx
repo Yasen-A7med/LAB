@@ -12,7 +12,13 @@ import {
   Mail, 
   Server, 
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Wrench,
+  Bell,
+  Lock,
+  Unlock,
+  ShieldAlert,
+  UserCheck
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -34,10 +40,26 @@ interface GuestItem {
   created_at: string;
 }
 
+interface SubscriberItem {
+  id: string;
+  project_id: string;
+  email: string;
+  created_at: string;
+}
+
 export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   const DEFAULT_PROJECT_ID = '13975872-827c-4eea-81e2-0b9dc1ef5ba6';
 
-  const [activeTab, setActiveTab] = useState<'projects' | 'settings' | 'scanner' | 'guests'>('projects');
+  // Maintenance & Admin Lock state
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
+    return localStorage.getItem('yashoo_es_unlocked') === 'true';
+  });
+  const [subscriberInput, setSubscriberInput] = useState('');
+  const [submittingSubscriber, setSubmittingSubscriber] = useState(false);
+  const [subscribeStatus, setSubscribeStatus] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Active view tab when unlocked
+  const [activeTab, setActiveTab] = useState<'projects' | 'settings' | 'scanner' | 'guests' | 'subscribers'>('projects');
   
   // Projects state
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -68,9 +90,66 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   const [addingGuest, setAddingGuest] = useState(false);
   const [guestSearchQuery, setGuestSearchQuery] = useState('');
 
+  // Maintenance Subscribers state
+  const [subscribers, setSubscribers] = useState<SubscriberItem[]>([]);
+  const [loadingSubscribers, setLoadingSubscribers] = useState(false);
+  const [subscriberSearch, setSubscriberSearch] = useState('');
+
   // Scanner / Checkin state
   const [scanInput, setScanInput] = useState('');
   const [scanStatus, setScanStatus] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Secret Admin Bypass or Email Registration
+  const handleMaintenanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = subscriberInput.trim();
+    if (!val) return;
+
+    // Secret Admin Keyword Bypass
+    if (val.toLowerCase() === 'admin') {
+      localStorage.setItem('yashoo_es_unlocked', 'true');
+      setIsUnlocked(true);
+      setSubscriberInput('');
+      return;
+    }
+
+    // Normal User Email Registration
+    setSubmittingSubscriber(true);
+    setSubscribeStatus(null);
+    try {
+      const { error } = await supabase
+        .from('maintenance_subscribers')
+        .insert({
+          project_id: 'yashoo-es',
+          email: val.toLowerCase(),
+        });
+
+      if (!error) {
+        setSubscribeStatus({
+          success: true,
+          message: 'تم تسجيل إيميلك بنجاح! سيتم إبلاغك فور الانتهاء من الصيانة ✨',
+        });
+        setSubscriberInput('');
+      } else {
+        setSubscribeStatus({
+          success: false,
+          message: 'تعذر حفظ البريد حالياً. يرجى المحاولة مرة أخرى.',
+        });
+      }
+    } catch {
+      setSubscribeStatus({
+        success: false,
+        message: 'حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.',
+      });
+    } finally {
+      setSubmittingSubscriber(false);
+    }
+  };
+
+  const handleLockAdmin = () => {
+    localStorage.removeItem('yashoo_es_unlocked');
+    setIsUnlocked(false);
+  };
 
   // Fetch Projects from Supabase
   const fetchProjects = async () => {
@@ -95,6 +174,25 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
       console.warn('Failed to fetch projects:', e);
     } finally {
       setLoadingProjects(false);
+    }
+  };
+
+  // Fetch Subscribers for Admin
+  const fetchSubscribers = async () => {
+    setLoadingSubscribers(true);
+    try {
+      const { data, error } = await supabase
+        .from('maintenance_subscribers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setSubscribers(data as SubscriberItem[]);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch subscribers:', e);
+    } finally {
+      setLoadingSubscribers(false);
     }
   };
 
@@ -282,21 +380,125 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   };
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (isUnlocked) {
+      fetchProjects();
+      fetchSubscribers();
+    }
+  }, [isUnlocked]);
 
   useEffect(() => {
-    if (selectedProjectId) {
+    if (isUnlocked && selectedProjectId) {
       fetchSettings(selectedProjectId);
       fetchGuests(selectedProjectId);
     }
-  }, [selectedProjectId]);
+  }, [isUnlocked, selectedProjectId]);
 
+  // ─────────────────────────────────────────────────────────────
+  // 🔒 MAINTENANCE MODE SCREEN (WHEN NOT UNLOCKED)
+  // ─────────────────────────────────────────────────────────────
+  if (!isUnlocked) {
+    return (
+      <div className="min-h-screen min-h-[100dvh] bg-[#040409] text-white flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden select-none">
+        
+        {/* Background Ambient Glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] bg-amber-500/10 rounded-full blur-[140px]" />
+          <div className="absolute bottom-10 right-10 w-72 h-72 bg-purple-500/10 rounded-full blur-[120px]" />
+        </div>
+
+        {/* Top Back Button */}
+        <div className="absolute top-6 left-6 z-20">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-gray-300 hover:text-white transition-all text-xs font-medium"
+          >
+            <ArrowLeft size={16} />
+            <span>العودة للرئيسية</span>
+          </button>
+        </div>
+
+        {/* Maintenance Card */}
+        <div className="w-full max-w-lg bg-[#0a0a12]/90 border border-white/10 rounded-3xl p-6 sm:p-10 backdrop-blur-2xl shadow-2xl flex flex-col items-center text-center relative z-10 my-auto">
+          
+          {/* Icon Badge */}
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-6 shadow-lg shadow-amber-500/5">
+            <Wrench size={32} className="animate-pulse" />
+          </div>
+
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-4">
+            <ShieldAlert size={14} />
+            <span>قيد الصيانة | Under Maintenance</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-3">
+            النظام قيد التحديث والصيانة
+          </h1>
+
+          <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-8 max-w-md">
+            نحن نعمل حالياً على تحسين وتطوير خدمات <strong className="text-white">Yashoo ES</strong> لتقديم أفضل تجربة. أدخل بريدك الإلكتروني ليصلك إشعار فور انتهاء الصيانة وإعادة التشغيل.
+          </p>
+
+          {/* Email Registration / Secret Unlock Form */}
+          <form onSubmit={handleMaintenanceSubmit} className="w-full flex flex-col gap-3">
+            <div className="relative w-full">
+              <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={subscriberInput}
+                onChange={(e) => setSubscriberInput(e.target.value)}
+                placeholder="أدخل بريدك الإلكتروني ليصلك إشعار..."
+                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3.5 text-xs sm:text-sm text-white outline-none transition-all placeholder:text-gray-500 text-center sm:text-right"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submittingSubscriber}
+              className="w-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-extrabold py-3.5 px-6 rounded-2xl text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              {submittingSubscriber ? (
+                <RefreshCw size={18} className="animate-spin" />
+              ) : (
+                <>
+                  <Bell size={18} />
+                  <span>أبلغني عندما يتم إصلحه</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Status Message Toast */}
+          {subscribeStatus && (
+            <div
+              className={`mt-4 w-full p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 border ${
+                subscribeStatus.success
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-red-500/10 border-red-500/30 text-red-400'
+              }`}
+            >
+              {subscribeStatus.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span>{subscribeStatus.message}</span>
+            </div>
+          )}
+
+        </div>
+
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔓 UNLOCKED FULL YASHOO ES APPLICATION (ADMIN MODE)
+  // ─────────────────────────────────────────────────────────────
   const checkedInCount = guests.filter((g) => g.status === 'checked-in').length;
   const pendingCount = guests.length - checkedInCount;
 
   const filteredGuests = guests.filter((g) =>
     g.email.toLowerCase().includes(guestSearchQuery.toLowerCase())
+  );
+
+  const filteredSubscribers = subscribers.filter((s) =>
+    s.email.toLowerCase().includes(subscriberSearch.toLowerCase())
   );
 
   return (
@@ -322,8 +524,8 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">Yashoo ES</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
-                  v1.0
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Unlock size={10} /> Admin
                 </span>
               </div>
               <span className="text-[11px] text-gray-400 font-medium block truncate max-w-[150px] sm:max-w-xs">
@@ -333,40 +535,60 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
           </div>
         </div>
 
-        {/* View Tabs */}
-        <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06] text-xs">
-          <button
-            onClick={() => setActiveTab('projects')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeTab === 'projects' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            Projects
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeTab === 'settings' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            Control Panel
-          </button>
+        {/* View Tabs & Lock Button */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06] text-xs">
+            <button
+              onClick={() => setActiveTab('projects')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+                activeTab === 'projects' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Projects
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+                activeTab === 'settings' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Control Panel
+            </button>
+
+            <button
+              onClick={() => setActiveTab('scanner')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+                activeTab === 'scanner' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Scanner
+            </button>
+            <button
+              onClick={() => setActiveTab('guests')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+                activeTab === 'guests' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Guests ({guests.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('subscribers')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === 'subscribers' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-amber-400 hover:text-white'
+              }`}
+            >
+              <Bell size={13} />
+              <span>المسجلين ({subscribers.length})</span>
+            </button>
+          </div>
 
           <button
-            onClick={() => setActiveTab('scanner')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeTab === 'scanner' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
-            }`}
+            onClick={handleLockAdmin}
+            title="تفعيل وضع الصيانة 🔒"
+            className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors text-xs font-semibold flex items-center gap-1"
           >
-            Scanner
-          </button>
-          <button
-            onClick={() => setActiveTab('guests')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeTab === 'guests' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            Guests ({guests.length})
+            <Lock size={15} />
+            <span className="hidden sm:inline">قفل</span>
           </button>
         </div>
       </header>
@@ -773,6 +995,75 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                           </button>
                         )}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* ──── Tab 5: Maintenance Subscribers (Admin Roster) ──── */}
+        {activeTab === 'subscribers' && (
+          <div className="flex flex-col gap-6">
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-extrabold text-white">المسجلين للإشعار (Maintenance Subscribers)</h2>
+                <p className="text-xs text-gray-400">قائمة الإيميلات التي سجلت أثناء وضع الصيانة ليصلها إشعار بعد الإصلاح.</p>
+              </div>
+
+              <button
+                onClick={fetchSubscribers}
+                className="px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-gray-300 hover:text-white transition-all text-xs font-medium flex items-center gap-1.5"
+              >
+                <RefreshCw size={14} className={loadingSubscribers ? 'animate-spin' : ''} />
+                <span>تحديث القائمة</span>
+              </button>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={subscriberSearch}
+                onChange={(e) => setSubscriberSearch(e.target.value)}
+                placeholder="البحث في إيميلات المشتركين..."
+                className="w-full bg-[#0b0b14]/80 border border-white/10 focus:border-amber-400 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white outline-none"
+              />
+            </div>
+
+            {/* Subscribers Table */}
+            <div className="bg-[#0b0b14]/80 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-xl">
+              {loadingSubscribers ? (
+                <div className="py-12 text-center text-gray-500 text-xs">جاري تحميل المشتركين...</div>
+              ) : filteredSubscribers.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 text-xs">لا يوجد مشتركون مسجلون حالياً.</div>
+              ) : (
+                <div className="divide-y divide-white/[0.06]">
+                  {filteredSubscribers.map((s) => (
+                    <div key={s.id} className="p-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
+                      <div className="flex items-center gap-3">
+                        <UserCheck size={18} className="text-amber-400" />
+                        <div>
+                          <span className="font-semibold text-xs sm:text-sm text-white block">{s.email}</span>
+                          <span className="text-[10px] text-gray-500 font-mono">
+                            تاريخ التسجيل: {new Date(s.created_at).toLocaleString('ar-EG')}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(s.email);
+                          alert(`تم نسخ الإيميل: ${s.email}`);
+                        }}
+                        className="px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        نسخ الإيميل
+                      </button>
                     </div>
                   ))}
                 </div>
