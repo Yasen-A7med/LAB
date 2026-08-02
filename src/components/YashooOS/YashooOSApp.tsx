@@ -15,7 +15,6 @@ import {
   AlertCircle,
   Wrench,
   Bell,
-  Lock,
   Unlock,
   ShieldAlert,
   UserCheck
@@ -50,9 +49,9 @@ interface SubscriberItem {
 export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   const DEFAULT_PROJECT_ID = '13975872-827c-4eea-81e2-0b9dc1ef5ba6';
 
-  // Maintenance & Admin Lock state
+  // Maintenance & Admin Lock state (Scoped to local browser session)
   const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
-    return localStorage.getItem('yashoo_es_unlocked') === 'true';
+    return sessionStorage.getItem('yashoo_es_admin_unlocked') === 'true' || localStorage.getItem('yashoo_es_admin_unlocked') === 'true';
   });
   const [subscriberInput, setSubscriberInput] = useState('');
   const [submittingSubscriber, setSubmittingSubscriber] = useState(false);
@@ -105,9 +104,10 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
     const val = subscriberInput.trim();
     if (!val) return;
 
-    // Secret Admin Keyword Bypass
+    // Secret Admin Keyword Bypass (Scoped strictly to this admin browser session)
     if (val.toLowerCase() === 'admin') {
-      localStorage.setItem('yashoo_es_unlocked', 'true');
+      sessionStorage.setItem('yashoo_es_admin_unlocked', 'true');
+      localStorage.setItem('yashoo_es_admin_unlocked', 'true');
       setIsUnlocked(true);
       setSubscriberInput('');
       return;
@@ -144,11 +144,6 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
     } finally {
       setSubmittingSubscriber(false);
     }
-  };
-
-  const handleLockAdmin = () => {
-    localStorage.removeItem('yashoo_es_unlocked');
-    setIsUnlocked(false);
   };
 
   // Fetch Projects from Supabase
@@ -394,7 +389,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   }, [isUnlocked, selectedProjectId]);
 
   // ─────────────────────────────────────────────────────────────
-  // 🔒 MAINTENANCE MODE SCREEN (WHEN NOT UNLOCKED)
+  // 🔒 MAINTENANCE MODE SCREEN (WHEN NOT UNLOCKED FOR THIS BROWSER)
   // ─────────────────────────────────────────────────────────────
   if (!isUnlocked) {
     return (
@@ -535,60 +530,49 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
           </div>
         </div>
 
-        {/* View Tabs & Lock Button */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06] text-xs">
-            <button
-              onClick={() => setActiveTab('projects')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'projects' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Projects
-            </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'settings' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Control Panel
-            </button>
-
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'scanner' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Scanner
-            </button>
-            <button
-              onClick={() => setActiveTab('guests')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                activeTab === 'guests' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Guests ({guests.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('subscribers')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
-                activeTab === 'subscribers' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-amber-400 hover:text-white'
-              }`}
-            >
-              <Bell size={13} />
-              <span>Subscribers ({subscribers.length})</span>
-            </button>
-          </div>
+        {/* View Tabs */}
+        <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06] text-xs">
+          <button
+            onClick={() => setActiveTab('projects')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              activeTab === 'projects' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Projects
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              activeTab === 'settings' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Control Panel
+          </button>
 
           <button
-            onClick={handleLockAdmin}
-            title="Lock Maintenance Mode 🔒"
-            className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors text-xs font-semibold flex items-center gap-1"
+            onClick={() => setActiveTab('scanner')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              activeTab === 'scanner' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
+            }`}
           >
-            <Lock size={15} />
-            <span className="hidden sm:inline">Lock</span>
+            Scanner
+          </button>
+          <button
+            onClick={() => setActiveTab('guests')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              activeTab === 'guests' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Guests ({guests.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('subscribers')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+              activeTab === 'subscribers' ? 'bg-amber-500 text-black shadow-md font-bold' : 'text-amber-400 hover:text-white'
+            }`}
+          >
+            <Bell size={13} />
+            <span>Subscribers ({subscribers.length})</span>
           </button>
         </div>
       </header>
