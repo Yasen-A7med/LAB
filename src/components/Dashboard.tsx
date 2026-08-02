@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Globe, 
   GraduationCap, 
+  QrCode,
   ArrowUpRight, 
   Mail, 
   Phone, 
@@ -17,6 +18,16 @@ interface DashboardProps {
 }
 
 const projects = [
+  {
+    id: 'qr',
+    title: 'Dynamic QR Studio',
+    desc: 'Create smart dynamic QR codes with fixed redirect links. Update destination targets anytime using password protection without altering the QR image.',
+    icon: QrCode,
+    tag: 'Smart Tools',
+    iconColor: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/10 border-cyan-500/20',
+    btnText: 'Open Studio ↗'
+  },
   {
     id: 'ultraproxy',
     title: 'UltraProxy Engine',
@@ -103,7 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
       </header>
 
       {/* ──────────────── Hero Section ──────────────── */}
-      <section className="relative z-10 flex-1 flex flex-col items-center justify-center px-5 sm:px-8 py-12 sm:py-20 text-center">
+      <section className="relative z-10 flex-1 flex flex-col items-center justify-center px-5 sm:px-8 py-12 sm:py-16 text-center">
         <div className="max-w-2xl w-full flex flex-col items-center gap-4 sm:gap-6">
           
           <motion.h1 
@@ -130,7 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
       {/* ──────────────── Project Cards Section ──────────────── */}
       <section className="relative z-10 w-full max-w-5xl mx-auto px-5 sm:px-8 pb-16 sm:pb-24">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           {projects.map((p, index) => {
             const IconComponent = p.icon;
             return (
@@ -143,7 +154,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
                 whileHover={{ y: -4 }}
                 whileTap={{ scale: 0.985 }}
                 onClick={() => onLaunch(p.id)}
-                className="glow-card relative group rounded-3xl p-6 sm:p-8 cursor-pointer flex flex-col justify-between overflow-hidden"
+                className="glow-card relative group rounded-3xl p-6 sm:p-7 cursor-pointer flex flex-col justify-between overflow-hidden"
               >
                 <div>
                   {/* Top Bar inside Card */}
@@ -162,12 +173,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered }) => {
                   </div>
 
                   {/* Title */}
-                  <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-3 group-hover:text-white/90 transition-colors">
+                  <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white mb-3 group-hover:text-white/90 transition-colors">
                     {p.title}
                   </h3>
 
                   {/* Description */}
-                  <p className="text-sm text-gray-400 leading-relaxed font-light mb-8">
+                  <p className="text-xs sm:text-sm text-gray-400 leading-relaxed font-light mb-8">
                     {p.desc}
                   </p>
                 </div>
