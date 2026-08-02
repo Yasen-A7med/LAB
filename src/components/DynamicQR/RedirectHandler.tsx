@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, Loader2, QrCode, AlertCircle, ArrowLeft } from 'lucide-react';
+import { ExternalLink, Loader2, QrCode, AlertCircle } from 'lucide-react';
 import { getQRCodeById, incrementScanCount } from '../../lib/supabase';
 import type { QRCodeItem } from '../../types/qr';
 
 interface RedirectHandlerProps {
   id?: string;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
-export const RedirectHandler: React.FC<RedirectHandlerProps> = ({ id, onBack }) => {
+export const RedirectHandler: React.FC<RedirectHandlerProps> = ({ id }) => {
   const [loading, setLoading] = useState(true);
   const [targetUrl, setTargetUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,19 +80,12 @@ export const RedirectHandler: React.FC<RedirectHandlerProps> = ({ id, onBack }) 
             <p className="text-xs text-gray-400">Taking you to your target destination</p>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
               <AlertCircle size={20} />
             </div>
             <h3 className="text-xl font-bold text-rose-400 tracking-tight">Link Not Found</h3>
             <p className="text-xs text-gray-400 leading-relaxed">{error}</p>
-            <button
-              onClick={onBack}
-              className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-colors cursor-pointer"
-            >
-              <ArrowLeft size={14} />
-              <span>Back to LAB</span>
-            </button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
