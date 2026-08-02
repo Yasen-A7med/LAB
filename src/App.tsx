@@ -4,13 +4,15 @@ import UltraProxy from './components/UltraProxy';
 import Thanawya from './components/Thanawya';
 import { DynamicQRStudio } from './components/DynamicQR/DynamicQRStudio';
 import { RedirectHandler } from './components/DynamicQR/RedirectHandler';
+import YashooOSApp from './components/YashooOS/YashooOSApp';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya' | 'qr' | 'redirect'>(() => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-os'>(() => {
     const path = window.location.pathname;
     if (path === '/ultraproxy') return 'ultraproxy';
     if (path === '/thanawya') return 'thanawya';
     if (path === '/qr') return 'qr';
+    if (path === '/yashoo-os' || path === '/os') return 'yashoo-os';
     if (path.startsWith('/r/')) return 'redirect';
     return 'dashboard';
   });
@@ -34,6 +36,8 @@ const App: React.FC = () => {
         setCurrentView('thanawya');
       } else if (path === '/qr') {
         setCurrentView('qr');
+      } else if (path === '/yashoo-os' || path === '/os') {
+        setCurrentView('yashoo-os');
       } else if (path.startsWith('/r/')) {
         setCurrentView('redirect');
       } else {
@@ -170,6 +174,9 @@ const App: React.FC = () => {
     } else if (id === 'qr') {
       window.history.pushState({}, '', '/qr');
       setCurrentView('qr');
+    } else if (id === 'yashoo-os') {
+      window.history.pushState({}, '', '/yashoo-os');
+      setCurrentView('yashoo-os');
     }
   };
 
@@ -201,6 +208,11 @@ const App: React.FC = () => {
       )}
       {currentView === 'qr' && (
         <DynamicQRStudio
+          onBack={handleBack}
+        />
+      )}
+      {currentView === 'yashoo-os' && (
+        <YashooOSApp
           onBack={handleBack}
         />
       )}

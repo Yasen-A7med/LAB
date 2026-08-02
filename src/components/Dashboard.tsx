@@ -4,6 +4,7 @@ import {
   Globe, 
   GraduationCap, 
   QrCode,
+  Cpu,
   ArrowUpRight, 
   Mail, 
   Phone, 
@@ -18,6 +19,16 @@ interface DashboardProps {
 }
 
 const projects = [
+  {
+    id: 'yashoo-os',
+    title: 'Yashoo OS',
+    desc: 'Event Management Suite, Guest Invitations, QR Ticket Verification & Automated Certificate Issuance.',
+    icon: Cpu,
+    tag: 'Management OS',
+    iconColor: 'text-amber-400',
+    iconBg: 'bg-amber-500/10 border-amber-500/20',
+    btnText: 'Open Yashoo OS ↗'
+  },
   {
     id: 'qr',
     title: 'Dynamic QR Studio',
