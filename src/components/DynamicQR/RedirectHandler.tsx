@@ -39,10 +39,13 @@ export const RedirectHandler: React.FC<RedirectHandlerProps> = ({ id }) => {
 
         setTargetUrl(item.target_url);
 
-        // Increment scan count in background
-        incrementScanCount(slug).catch(() => {});
+        // Await scan count & scan log recording before redirecting tab
+        await Promise.race([
+          incrementScanCount(slug),
+          new Promise((resolve) => setTimeout(resolve, 600)),
+        ]);
 
-        // Instant redirect execution
+        // Perform instant redirect execution
         window.location.replace(item.target_url);
       } catch (err) {
         if (isMounted) {
