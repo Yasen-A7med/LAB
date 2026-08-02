@@ -191,7 +191,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLaunch, swRegistered: _swRegist
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-sm sm:text-base md:text-lg text-gray-300 max-w-2xl leading-relaxed font-medium"
           >
-            مختبر Yasen Ahmed ومستودع لجميع تجاربه ومشاريعه المتاحة للجميع
+            Yasen Ahmed's personal laboratory and repository for all experiments and public projects.
           </motion.p>
 
         </div>
