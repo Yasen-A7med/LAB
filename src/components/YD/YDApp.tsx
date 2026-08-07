@@ -64,11 +64,7 @@ interface VideoFormatsData {
   audio: FormatItem[];
 }
 
-const SAMPLE_LINKS = [
-  { label: 'Rick Astley - 4K Remaster', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-  { label: 'Lofi Girl - Study Beats', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk' },
-  { label: 'Sample YouTube Short', url: 'https://www.youtube.com/shorts/300-84-7a1E' }
-];
+
 
 export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   const [urlInput, setUrlInput] = useState('');
@@ -314,28 +310,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
           </div>
         </motion.form>
 
-        {/* Quick Sample Links */}
-        {!videoData && !loading && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-wrap items-center justify-center gap-2 mb-8"
-          >
-            <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider mr-1">Quick Demos:</span>
-            {SAMPLE_LINKS.map((sample, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  setUrlInput(sample.url);
-                  fetchVideoInfo(sample.url);
-                }}
-                className="text-xs px-3 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-red-500/40 text-gray-400 hover:text-white transition-all backdrop-blur-xl"
-              >
-                {sample.label}
-              </button>
-            ))}
-          </motion.div>
-        )}
+
 
         {/* Error Alert */}
         <AnimatePresence>
