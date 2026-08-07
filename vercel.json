@@ -1,35 +1,17 @@
 {
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/vite"
-    }
-  ],
   "functions": {
-    "api/**/*.js": {
+    "api/yd/*.js": {
       "includeFiles": "bin/**"
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/yd/info",
-      "dest": "/api/yd/info.js"
+      "source": "/uv/service/(.*)",
+      "destination": "/index.html"
     },
     {
-      "src": "/api/yd/download",
-      "dest": "/api/yd/download.js"
-    },
-    {
-      "src": "/uv/service/(.*)",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/((?!api/|uv/|epoxy/|baremux/|bare/|assets/|thanawya/).*)",
-      "dest": "/index.html"
+      "source": "/((?!api/|uv/|epoxy/|baremux/|bare/|assets/|thanawya/).*)",
+      "destination": "/index.html"
     }
   ]
 }
