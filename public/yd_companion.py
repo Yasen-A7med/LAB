@@ -13,6 +13,7 @@ Then open the YD web app - it will auto-detect this server.
 """
 
 import json
+import os
 import re
 import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -229,6 +230,10 @@ class YDHandler(BaseHTTPRequestHandler):
             self._send_json(500, {"success": False, "error": str(exc)}, origin)
 
     def _handle_download(self, url, fmt, quality, origin):
+        import tempfile
+        import shutil
+        import glob as glob_mod
+
         try:
             is_audio = fmt == "mp3"
             desired_height = 720
@@ -237,52 +242,95 @@ class YDHandler(BaseHTTPRequestHandler):
             except:
                 pass
 
+            tmpdir = tempfile.mkdtemp(prefix="yd_")
+
             if is_audio:
                 format_spec = "bestaudio/best"
+                ydl_opts = {
+                    "quiet": True,
+                    "no_warnings": True,
+                    "format": format_spec,
+                    "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
+                    "postprocessors": [{
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "192",
+                    }],
+                }
             else:
                 format_spec = (
                     f"bestvideo[height<={desired_height}]+bestaudio/"
                     f"best[height<={desired_height}]/bestvideo+bestaudio/best"
                 )
+                ydl_opts = {
+                    "quiet": True,
+                    "no_warnings": True,
+                    "format": format_spec,
+                    "merge_output_format": "mp4",
+                    "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
+                }
 
-            ydl_opts = {
-                "quiet": True,
-                "no_warnings": True,
-                "format": format_spec,
-            }
+            print(f"  Downloading: {url} [{quality} {fmt}]")
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+                ydl.download([url])
 
-            direct_url = info.get("url")
-            if not direct_url:
-                for rf in info.get("requested_formats", []):
-                    if is_audio and rf.get("acodec", "none") != "none":
-                        direct_url = rf["url"]
-                        break
-                    elif not is_audio and rf.get("vcodec", "none") != "none":
-                        direct_url = rf["url"]
-                        break
-            if not direct_url:
-                for f in reversed(info.get("formats", [])):
-                    if f.get("url", "").startswith("http"):
-                        direct_url = f["url"]
-                        break
+            # Find the downloaded file
+            files = glob_mod.glob(os.path.join(tmpdir, "*"))
+            if not files:
+                self._send_json(500, {"error": "Download completed but no file found"}, origin)
+                shutil.rmtree(tmpdir, ignore_errors=True)
+                return
 
-            if direct_url:
-                self.send_response(302)
-                self.send_header("Location", direct_url)
-                self.send_header("Access-Control-Allow-Origin", self._cors_headers(origin))
-                self.end_headers()
-            else:
-                self._send_json(500, {"error": "Could not extract stream URL"}, origin)
+            filepath = files[0]
+            filename = os.path.basename(filepath)
+            filesize = os.path.getsize(filepath)
+
+            # Sanitize filename for Content-Disposition
+            safe_name = re.sub(r'[^\w\s\-.]', '_', filename)
+
+            content_type = "audio/mpeg" if is_audio else "video/mp4"
+
+            print(f"  Serving: {safe_name} ({format_bytes(filesize)})")
+
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Disposition", f'attachment; filename="{safe_name}"')
+            self.send_header("Content-Length", str(filesize))
+            self.send_header("Access-Control-Allow-Origin", self._cors_headers(origin))
+            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+            self.end_headers()
+
+            with open(filepath, "rb") as f:
+                while True:
+                    chunk = f.read(65536)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+
+            # Cleanup temp dir
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            print(f"  Done: {safe_name}")
 
         except Exception as exc:
             self._send_json(500, {"error": str(exc)}, origin)
+            # Try cleanup
+            try:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+            except:
+                pass
 
     def log_message(self, format, *args):
         msg = format % args
         if "OPTIONS" not in msg:
             print(f"  {msg}")
+
+
+def check_ffmpeg():
+    """Check if ffmpeg is available for video+audio merging."""
+    import shutil as _shutil
+    if _shutil.which("ffmpeg"):
+        return True
+    return False
 
 
 def main():
@@ -294,6 +342,15 @@ def main():
     |_| |____/  Companion Server
     """)
     print(f"  Engine:  yt-dlp {yt_dlp.version.__version__}")
+
+    if check_ffmpeg():
+        print("  FFmpeg:  Found (video+audio merge enabled)")
+    else:
+        print("  FFmpeg:  NOT FOUND")
+        print("           Videos will download WITHOUT audio!")
+        print("           Install ffmpeg: https://ffmpeg.org/download.html")
+        print()
+
     print(f"  Server:  http://localhost:{PORT}")
     print(f"  Status:  Ready — open the YD web app to start downloading.\n")
 

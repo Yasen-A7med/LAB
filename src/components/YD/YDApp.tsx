@@ -232,53 +232,68 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   const handleDownload = async () => {
     if (!videoData) return;
 
-    const availableFormats = activeTab === 'mp3' ? formats?.audio : formats?.video;
-    const selectedFormat = availableFormats?.find(f => f.quality === selectedQuality) || availableFormats?.[0];
-
-    // If the format has a direct stream URL (from companion), redirect to it
-    if (selectedFormat?.url) {
-      setIsDownloading(true);
-      setDownloadProgress(50);
-      setDownloadSuccess(false);
-      setErrorMsg(null);
-
-      const link = document.createElement('a');
-      link.href = selectedFormat.url;
-      link.setAttribute('download', '');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setTimeout(() => {
-        setDownloadProgress(100);
-        setIsDownloading(false);
-        setDownloadSuccess(true);
-        setTimeout(() => setDownloadSuccess(false), 5000);
-      }, 1500);
-      return;
-    }
-
-    // If companion is available, use the /download endpoint (302 redirect to CDN)
+    // If companion is available, use the /download endpoint (downloads merged file)
     if (companionAvailable) {
       setIsDownloading(true);
-      setDownloadProgress(30);
+      setDownloadProgress(5);
       setDownloadSuccess(false);
       setErrorMsg(null);
 
-      const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', '');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
-      setTimeout(() => {
+        const response = await fetch(downloadUrl);
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({ error: 'Download failed' }));
+          throw new Error(errData.error || 'Download failed');
+        }
+
+        const contentLength = Number(response.headers.get('Content-Length') || 0);
+        const reader = response.body?.getReader();
+        const chunks: BlobPart[] = [];
+        let received = 0;
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            received += value.length;
+            if (contentLength > 0) {
+              setDownloadProgress(Math.min(95, Math.round((received / contentLength) * 95)));
+            } else {
+              setDownloadProgress(Math.min(90, 5 + Math.round(received / 100000)));
+            }
+          }
+        }
+
+        // Create blob and trigger download
+        const contentType = activeTab === 'mp3' ? 'audio/mpeg' : 'video/mp4';
+        const blob = new Blob(chunks, { type: contentType });
+        const blobUrl = URL.createObjectURL(blob);
+
+        const cleanTitle = videoData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
+        const filename = `${cleanTitle}.${activeTab === 'mp3' ? 'mp3' : 'mp4'}`;
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+
         setDownloadProgress(100);
         setIsDownloading(false);
         setDownloadSuccess(true);
         setTimeout(() => setDownloadSuccess(false), 5000);
-      }, 2000);
+
+      } catch (err: any) {
+        setIsDownloading(false);
+        setDownloadProgress(0);
+        setErrorMsg(err.message || 'Download failed. Make sure the companion server is running.');
+      }
       return;
     }
 
