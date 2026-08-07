@@ -7,14 +7,16 @@ const execFileAsync = promisify(execFile);
 
 function getYtDlpBinaryPath() {
   const isWin = process.platform === 'win32';
-  const localBin = path.resolve(process.cwd(), isWin ? 'bin/yt-dlp.exe' : 'bin/yt-dlp');
+  const binName = isWin ? 'yt-dlp.exe' : 'yt-dlp';
+  const localBin = path.join(process.cwd(), 'bin', binName);
+  
   if (fs.existsSync(localBin)) {
     if (!isWin) {
       try { fs.chmodSync(localBin, 0o755); } catch(e) {}
     }
     return localBin;
   }
-  return isWin ? 'yt-dlp.exe' : 'yt-dlp';
+  return binName;
 }
 
 function sanitizeFilename(name) {
