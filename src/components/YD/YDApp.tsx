@@ -224,7 +224,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
             <YoutubeIcon size={20} />
           </div>
           <span className="font-extrabold text-xl tracking-tight text-white">
-            YD <span className="text-red-500 text-xs uppercase font-mono px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 ml-1">Downloader</span>
+            YD <span className="text-red-500 text-xs uppercase font-mono px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 ml-1">Suite</span>
           </span>
         </motion.div>
       </header>
@@ -601,7 +601,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
 
       {/* Footer */}
       <footer className="relative z-10 w-full border-t border-white/[0.08] bg-[#020205]/90 py-4 text-center text-xs text-gray-500 font-medium">
-        YD YouTube Downloader • Yashoo LAB Suite
+        YD • Yashoo LAB Suite
       </footer>
     </div>
   );

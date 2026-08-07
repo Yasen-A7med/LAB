@@ -58,14 +58,14 @@ const YoutubeIcon: React.FC<{ size?: number; className?: string }> = ({ size = 2
 const projects: ProjectCardData[] = [
   {
     id: 'yd',
-    title: 'YD Downloader',
+    title: 'YD',
     desc: 'High-speed YouTube Video & MP3 Audio Downloader. Custom quality selection (1080p, 720p, 480p, MP3) with audio toggle.',
     icon: YoutubeIcon,
     tag: 'Media Tools',
     iconColor: 'text-red-500',
     iconBg: 'bg-red-500/10 border-red-500/20',
     glowColor: 'group-hover:shadow-red-500/20 group-hover:border-red-500/40',
-    btnText: 'Open YD Downloader',
+    btnText: 'Open YD',
     badgeText: 'YouTube Suite'
   },
   {
