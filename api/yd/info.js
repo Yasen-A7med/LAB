@@ -1,8 +1,11 @@
 import ytdl from '@distube/ytdl-core';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
+const execAsync = promisify(exec);
 const agent = ytdl.createAgent();
 
-// Helper to extract 11-character video ID from any YouTube URL format
+// Helper to extract 11-character video ID
 function extractVideoId(url) {
   if (!url) return null;
   const cleanUrl = url.trim();
@@ -14,7 +17,7 @@ function extractVideoId(url) {
   }
 }
 
-// Helper to format duration in seconds into HH:MM:SS or MM:SS
+// Helper to format duration in seconds
 function formatDuration(seconds) {
   if (!seconds || isNaN(seconds)) return '03:45';
   const sec = Math.floor(Number(seconds));
@@ -28,7 +31,6 @@ function formatDuration(seconds) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-// Helper to format byte sizes into readable string (e.g., 45.2 MB)
 function formatBytes(bytes) {
   if (!bytes || isNaN(bytes) || bytes === 0) return 'Auto Size';
   const b = Number(bytes);
@@ -38,7 +40,6 @@ function formatBytes(bytes) {
   return `${(b / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-// Helper to format view counts (e.g. 1.5M views)
 function formatViews(views) {
   if (!views || isNaN(views)) return '1.2M';
   const v = Number(views);
@@ -47,7 +48,7 @@ function formatViews(views) {
   return v.toString();
 }
 
-async function handler(req, res) {
+export default async function handler(req, res) {
   const urlParams = req.query || Object.fromEntries(new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`).searchParams);
   const targetUrl = urlParams.url;
 
@@ -82,107 +83,171 @@ async function handler(req, res) {
   let videoFormats = [];
   let audioFormats = [];
 
-  // Attempt Tier 1: ytdl-core
+  // Strategy 1: Attempt yt-dlp binary extraction first if installed
   try {
-    const info = await ytdl.getInfo(videoId, { agent });
-    const details = info.videoDetails || {};
+    const { stdout } = await execAsync(`yt-dlp -j "https://www.youtube.com/watch?v=${videoId}"`, { timeout: 10000 });
+    if (stdout) {
+      const data = JSON.parse(stdout);
+      videoDetails = {
+        id: videoId,
+        title: data.title || 'YouTube Video',
+        description: data.description ? data.description.substring(0, 200) + '...' : 'High Quality YouTube Video Stream',
+        thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        duration: data.duration || 180,
+        durationFormatted: formatDuration(data.duration),
+        author: data.uploader || data.channel || 'YouTube Creator',
+        authorChannelUrl: data.uploader_url || data.channel_url || `https://www.youtube.com/watch?v=${videoId}`,
+        viewCount: formatViews(data.view_count),
+        rawViewCount: data.view_count || 0,
+        uploadDate: data.upload_date || ''
+      };
 
-    videoDetails = {
-      id: videoId,
-      title: details.title || 'YouTube Video',
-      description: details.description ? details.description.substring(0, 200) + '...' : 'High Quality YouTube Video Stream',
-      thumbnail: (details.thumbnails && details.thumbnails.length > 0)
-        ? details.thumbnails[details.thumbnails.length - 1].url
-        : `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-      duration: Number(details.lengthSeconds) || 180,
-      durationFormatted: formatDuration(details.lengthSeconds),
-      author: details.author?.name || 'YouTube Creator',
-      authorChannelUrl: details.author?.user_url || details.author?.channel_url || `https://www.youtube.com/watch?v=${videoId}`,
-      viewCount: formatViews(details.viewCount),
-      rawViewCount: Number(details.viewCount) || 0,
-      uploadDate: details.publishDate || ''
-    };
+      const validFormats = (data.formats || []).filter(f => f.url && f.url.startsWith('http'));
+      const videoMap = new Map();
 
-    const rawFormats = info.formats || [];
-    const videoMap = new Map();
+      validFormats.forEach(f => {
+        const size = f.filesize || f.filesize_approx || 0;
+        if (f.vcodec !== 'none' && f.height) {
+          const height = f.height;
+          let label = `${height}p`;
+          if (height >= 2160) label = '4K (2160p)';
+          else if (height >= 1440) label = '2K (1440p)';
+          else if (height >= 1080) label = '1080p Full HD';
+          else if (height >= 720) label = '720p HD';
+          else if (height >= 480) label = '480p Standard';
+          else if (height >= 360) label = '360p Medium';
 
-    rawFormats.forEach(f => {
-      const hasVideo = f.hasVideo;
-      const hasAudio = f.hasAudio;
-      const size = f.contentLength ? Number(f.contentLength) : 0;
+          const key = `${height}p`;
+          const item = {
+            formatId: f.format_id || 'mp4',
+            quality: key,
+            qualityLabel: label,
+            height: height,
+            ext: f.ext || 'mp4',
+            container: f.ext || 'mp4',
+            hasVideo: true,
+            hasAudio: f.acodec !== 'none',
+            filesizeFormatted: formatBytes(size),
+            url: f.url
+          };
 
-      if (hasVideo) {
-        const height = f.height || (f.qualityLabel ? parseInt(f.qualityLabel) : 360);
-        let label = `${height}p`;
-        if (height >= 2160) label = '4K (2160p)';
-        else if (height >= 1440) label = '2K (1440p)';
-        else if (height >= 1080) label = '1080p Full HD';
-        else if (height >= 720) label = '720p HD';
-        else if (height >= 480) label = '480p';
-        else if (height >= 360) label = '360p';
-        else if (height >= 240) label = '240p';
-
-        const key = `${height}p`;
-        const existing = videoMap.get(key);
-
-        const item = {
-          formatId: f.itag ? f.itag.toString() : 'mp4',
-          quality: key,
-          qualityLabel: label,
-          height: height,
-          fps: f.fps || 30,
-          ext: f.container || 'mp4',
-          container: f.container || 'mp4',
-          hasVideo: true,
-          hasAudio: hasAudio,
-          filesizeFormatted: formatBytes(size),
-          url: f.url || ''
-        };
-
-        if (!existing || (item.hasAudio && !existing.hasAudio) || (item.ext === 'mp4' && existing.ext !== 'mp4')) {
-          videoMap.set(key, item);
+          if (!videoMap.has(key) || item.hasAudio) {
+            videoMap.set(key, item);
+          }
         }
-      }
 
-      if (hasAudio && !hasVideo) {
-        const bitrate = f.audioBitrate || 128;
-        audioFormats.push({
-          formatId: f.itag ? f.itag.toString() : 'mp3',
-          quality: `${bitrate}kbps`,
-          qualityLabel: `${bitrate} kbps MP3`,
-          bitrate: bitrate,
-          ext: 'mp3',
-          container: 'mp3',
-          hasVideo: false,
-          hasAudio: true,
-          filesizeFormatted: formatBytes(size),
-          url: f.url || ''
-        });
-      }
-    });
+        if (f.acodec !== 'none' && (f.vcodec === 'none' || !f.height)) {
+          const bitrate = Math.round(f.abr || f.tbr || 128);
+          audioFormats.push({
+            formatId: f.format_id || 'mp3',
+            quality: `${bitrate}kbps`,
+            qualityLabel: `${bitrate} kbps MP3`,
+            bitrate: bitrate,
+            ext: 'mp3',
+            container: 'mp3',
+            hasVideo: false,
+            hasAudio: true,
+            filesizeFormatted: formatBytes(size),
+            url: f.url
+          });
+        }
+      });
 
-    videoFormats = Array.from(videoMap.values()).sort((a, b) => b.height - a.height);
-    audioFormats.sort((a, b) => b.bitrate - a.bitrate);
+      videoFormats = Array.from(videoMap.values()).sort((a, b) => b.height - a.height);
+      audioFormats.sort((a, b) => b.bitrate - a.bitrate);
+    }
+  } catch (ytDlpErr) {
+    console.warn('yt-dlp execution error or unavailable, falling back to ytdl-core:', ytDlpErr.message);
+  }
 
-  } catch (err) {
-    console.warn('ytdl-core info error, invoking oEmbed fallback:', err.message);
-
-    // Attempt Tier 2: YouTube oEmbed API
+  // Strategy 2: Fallback to ytdl-core if yt-dlp did not return video formats
+  if (videoFormats.length === 0) {
     try {
-      const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-      if (oembedRes.ok) {
-        const oembed = await oembedRes.json();
-        videoDetails.title = oembed.title || videoDetails.title;
-        videoDetails.author = oembed.author_name || videoDetails.author;
-        videoDetails.authorChannelUrl = oembed.author_url || videoDetails.authorChannelUrl;
-        videoDetails.thumbnail = oembed.thumbnail_url || videoDetails.thumbnail;
+      const info = await ytdl.getInfo(videoId, { agent });
+      const details = info.videoDetails || {};
+
+      videoDetails = {
+        id: videoId,
+        title: details.title || videoDetails.title,
+        description: details.description ? details.description.substring(0, 200) + '...' : videoDetails.description,
+        thumbnail: (details.thumbnails && details.thumbnails.length > 0)
+          ? details.thumbnails[details.thumbnails.length - 1].url
+          : videoDetails.thumbnail,
+        duration: Number(details.lengthSeconds) || videoDetails.duration,
+        durationFormatted: formatDuration(details.lengthSeconds),
+        author: details.author?.name || videoDetails.author,
+        authorChannelUrl: details.author?.user_url || details.author?.channel_url || videoDetails.authorChannelUrl,
+        viewCount: formatViews(details.viewCount),
+        rawViewCount: Number(details.viewCount) || 0,
+        uploadDate: details.publishDate || ''
+      };
+
+      const rawFormats = info.formats || [];
+      const videoMap = new Map();
+
+      rawFormats.forEach(f => {
+        if (f.url) {
+          const hasVideo = f.hasVideo;
+          const hasAudio = f.hasAudio;
+          const size = f.contentLength ? Number(f.contentLength) : 0;
+
+          if (hasVideo) {
+            const height = f.height || 360;
+            const key = `${height}p`;
+            videoMap.set(key, {
+              formatId: f.itag ? f.itag.toString() : 'mp4',
+              quality: key,
+              qualityLabel: `${height}p`,
+              height: height,
+              ext: f.container || 'mp4',
+              container: f.container || 'mp4',
+              hasVideo: true,
+              hasAudio: hasAudio,
+              filesizeFormatted: formatBytes(size),
+              url: f.url
+            });
+          }
+
+          if (hasAudio && !hasVideo) {
+            const bitrate = f.audioBitrate || 128;
+            audioFormats.push({
+              formatId: f.itag ? f.itag.toString() : 'mp3',
+              quality: `${bitrate}kbps`,
+              qualityLabel: `${bitrate} kbps MP3`,
+              bitrate: bitrate,
+              ext: 'mp3',
+              container: 'mp3',
+              hasVideo: false,
+              hasAudio: true,
+              filesizeFormatted: formatBytes(size),
+              url: f.url
+            });
+          }
+        }
+      });
+
+      videoFormats = Array.from(videoMap.values()).sort((a, b) => b.height - a.height);
+      audioFormats.sort((a, b) => b.bitrate - a.bitrate);
+
+    } catch (ytdlErr) {
+      console.warn('ytdl-core error, using oEmbed fallback:', ytdlErr.message);
+
+      try {
+        const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+        if (oembedRes.ok) {
+          const oembed = await oembedRes.json();
+          videoDetails.title = oembed.title || videoDetails.title;
+          videoDetails.author = oembed.author_name || videoDetails.author;
+          videoDetails.authorChannelUrl = oembed.author_url || videoDetails.authorChannelUrl;
+          videoDetails.thumbnail = oembed.thumbnail_url || videoDetails.thumbnail;
+        }
+      } catch (oembedErr) {
+        console.warn('oEmbed fallback error:', oembedErr.message);
       }
-    } catch (oembedErr) {
-      console.warn('oEmbed fallback error:', oembedErr.message);
     }
   }
 
-  // Ensure fallback formats if empty
+  // Ensure default fallback formats exist
   if (videoFormats.length === 0) {
     videoFormats = [
       { quality: '1080p', qualityLabel: '1080p Full HD', height: 1080, ext: 'mp4', container: 'mp4', filesizeFormatted: '~45 MB' },
@@ -217,5 +282,3 @@ async function handler(req, res) {
     headers: { 'Content-Type': 'application/json' }
   });
 }
-
-export default handler;
