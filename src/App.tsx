@@ -5,13 +5,15 @@ import Thanawya from './components/Thanawya';
 import { DynamicQRStudio } from './components/DynamicQR/DynamicQRStudio';
 import { RedirectHandler } from './components/DynamicQR/RedirectHandler';
 import YashooOSApp from './components/YashooOS/YashooOSApp';
+import YDApp from './components/YD/YDApp';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es'>(() => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es' | 'yd'>(() => {
     const path = window.location.pathname;
     if (path === '/ultraproxy') return 'ultraproxy';
     if (path === '/thanawya') return 'thanawya';
     if (path === '/qr') return 'qr';
+    if (path === '/yd') return 'yd';
     if (path === '/yashoo-es' || path === '/es' || path === '/yashoo-os' || path === '/os') return 'yashoo-es';
     if (path.startsWith('/r/')) return 'redirect';
     return 'dashboard';
@@ -36,6 +38,8 @@ const App: React.FC = () => {
         setCurrentView('thanawya');
       } else if (path === '/qr') {
         setCurrentView('qr');
+      } else if (path === '/yd') {
+        setCurrentView('yd');
       } else if (path === '/yashoo-es' || path === '/es' || path === '/yashoo-os' || path === '/os') {
         setCurrentView('yashoo-es');
       } else if (path.startsWith('/r/')) {
@@ -174,6 +178,9 @@ const App: React.FC = () => {
     } else if (id === 'qr') {
       window.history.pushState({}, '', '/qr');
       setCurrentView('qr');
+    } else if (id === 'yd') {
+      window.history.pushState({}, '', '/yd');
+      setCurrentView('yd');
     } else if (id === 'yashoo-es') {
       window.history.pushState({}, '', '/yashoo-es');
       setCurrentView('yashoo-es');
@@ -208,6 +215,11 @@ const App: React.FC = () => {
       )}
       {currentView === 'qr' && (
         <DynamicQRStudio
+          onBack={handleBack}
+        />
+      )}
+      {currentView === 'yd' && (
+        <YDApp
           onBack={handleBack}
         />
       )}
