@@ -200,11 +200,11 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   };
 
   // Initiate Download
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!videoData) return;
 
     setIsDownloading(true);
-    setDownloadProgress(5);
+    setDownloadProgress(15);
     setDownloadSuccess(false);
     setErrorMsg(null);
 
@@ -214,85 +214,29 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
     const cleanTitle = videoData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
     const filename = `${cleanTitle}.${activeTab}`;
 
-    try {
-      const streamUrl = selectedFormat?.url || `https://www.youtube.com/watch?v=${videoData.id}`;
+    const streamUrl = selectedFormat?.url || '';
+    const downloadApiUrl = `/api/yd/download?url=${encodeURIComponent(urlInput.trim())}&streamUrl=${encodeURIComponent(streamUrl)}&title=${encodeURIComponent(videoData.title)}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
-      // 1. Fetch stream payload via Edge Proxy (/api/bare/v3) with CORS bypass
-      const res = await fetch('/api/bare/v3', {
-        headers: {
-          'x-bare-url': streamUrl
-        }
-      });
+    // Simulate progress indicator while browser initiates file save
+    const progressInterval = setInterval(() => {
+      setDownloadProgress((prev) => (prev >= 90 ? 90 : prev + 15));
+    }, 350);
 
-      if (!res.ok) {
-        throw new Error('Proxy stream error');
-      }
+    // Trigger browser native file download from /api/yd/download attachment response
+    const link = document.createElement('a');
+    link.href = downloadApiUrl;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-      // Read response stream chunks for live progress percentage feedback
-      const contentLength = Number(res.headers.get('content-length')) || 0;
-      const reader = res.body?.getReader();
-
-      let receivedBytes = 0;
-      const chunks: BlobPart[] = [];
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) {
-            chunks.push(value);
-            receivedBytes += value.length;
-            if (contentLength > 0) {
-              const pct = Math.round((receivedBytes / contentLength) * 100);
-              setDownloadProgress(Math.min(pct, 98));
-            } else {
-              setDownloadProgress((prev) => Math.min(prev + 8, 92));
-            }
-          }
-        }
-      }
-
-      const mimeType = activeTab === 'mp3' ? 'audio/mpeg' : 'video/mp4';
-      const blob = new Blob(chunks, { type: mimeType });
-
+    setTimeout(() => {
+      clearInterval(progressInterval);
       setDownloadProgress(100);
-
-      // Create Object URL and trigger native browser file save dialog
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setTimeout(() => {
-        URL.revokeObjectURL(blobUrl);
-      }, 20000);
-
       setIsDownloading(false);
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 5000);
-
-    } catch (err: any) {
-      console.warn('Proxy blob download error, triggering /api/yd/download fallback:', err);
-      
-      // Fallback via backend attachment download endpoint
-      try {
-        const fallbackEndpoint = `/api/yd/download?streamUrl=${encodeURIComponent(selectedFormat?.url || '')}&url=${encodeURIComponent(urlInput.trim())}&title=${encodeURIComponent(videoData.title)}&format=${activeTab}`;
-        const link = document.createElement('a');
-        link.href = fallbackEndpoint;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch(e) {}
-
-      setIsDownloading(false);
-      setDownloadProgress(100);
-      setDownloadSuccess(true);
-      setTimeout(() => setDownloadSuccess(false), 5000);
-    }
+    }, 2500);
   };
 
   return (
