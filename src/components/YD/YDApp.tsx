@@ -200,50 +200,50 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   };
 
   // Initiate Download
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!videoData) return;
 
     setIsDownloading(true);
-    setDownloadProgress(10);
+    setDownloadProgress(15);
     setDownloadSuccess(false);
 
-    // Simulate progress while initiating stream download
-    const interval = setInterval(() => {
-      setDownloadProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(interval);
-          return 90;
-        }
-        return prev + 15;
-      });
-    }, 400);
-
     const isAudioOnly = activeTab === 'mp3' || audioOption === 'audio_only';
-    const isMuted = audioOption === 'muted';
-
-    // Find direct format stream URL if available
     const availableFormats = activeTab === 'mp3' ? formats?.audio : formats?.video;
     const selectedFormat = availableFormats?.find(f => f.quality === selectedQuality) || availableFormats?.[0];
 
-    const targetDownloadUrl = (selectedFormat && selectedFormat.url)
-      ? selectedFormat.url
-      : `/api/yd/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}&audio=${isAudioOnly ? 'audio_only' : isMuted ? 'false' : 'true'}&title=${encodeURIComponent(videoData.title)}`;
+    const cleanTitle = videoData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
+    const filename = `${cleanTitle}.${activeTab}`;
 
-    // Open direct stream URL or 302 redirect link in new tab for instant high-speed browser download
-    const link = document.createElement('a');
-    link.href = targetDownloadUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const streamUrl = selectedFormat?.url || '';
+      const downloadEndpoint = `/api/yd/download?streamUrl=${encodeURIComponent(streamUrl)}&url=${encodeURIComponent(urlInput.trim())}&title=${encodeURIComponent(videoData.title)}&format=${activeTab}&audio=${isAudioOnly ? 'audio_only' : 'true'}`;
 
-    setTimeout(() => {
-      setDownloadProgress(100);
+      // Simulate download progress indicator
+      const progressInterval = setInterval(() => {
+        setDownloadProgress((prev) => (prev >= 85 ? 85 : prev + 15));
+      }, 300);
+
+      // Trigger browser force file download via attachment header endpoint
+      const link = document.createElement('a');
+      link.href = downloadEndpoint;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => {
+        clearInterval(progressInterval);
+        setDownloadProgress(100);
+        setIsDownloading(false);
+        setDownloadSuccess(true);
+        setTimeout(() => setDownloadSuccess(false), 5000);
+      }, 2000);
+
+    } catch (err: any) {
+      console.error('Download error:', err);
       setIsDownloading(false);
-      setDownloadSuccess(true);
-      setTimeout(() => setDownloadSuccess(false), 5000);
-    }, 2500);
+      setErrorMsg('Failed to initiate download. Please try again.');
+    }
   };
 
   return (
