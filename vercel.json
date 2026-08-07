@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/yd/*.js": {
+    "api/**/*.js": {
       "includeFiles": "bin/**"
     }
   },
