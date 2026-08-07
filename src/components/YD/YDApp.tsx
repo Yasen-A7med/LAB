@@ -83,6 +83,29 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
 
+  // Companion server state
+  const [companionAvailable, setCompanionAvailable] = useState<boolean | null>(null);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
+  const COMPANION_URL = 'http://localhost:8765';
+
+  // Check companion server on mount
+  React.useEffect(() => {
+    const checkCompanion = async () => {
+      try {
+        const res = await fetch(`${COMPANION_URL}/ping`, { signal: AbortSignal.timeout(2000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'ok') {
+            setCompanionAvailable(true);
+            return;
+          }
+        }
+      } catch {}
+      setCompanionAvailable(false);
+    };
+    checkCompanion();
+  }, []);
+
   // Auto-detect YouTube URL from clipboard on click
   const handlePasteClipboard = async () => {
     try {
@@ -103,7 +126,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
     return /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\/.+$/i.test(url.trim());
   };
 
-  // Fetch Video Info from API with direct client fallback
+  // Fetch Video Info — tries local companion first, then Vercel API, then oEmbed fallback
   const fetchVideoInfo = async (targetUrl: string) => {
     if (!targetUrl.trim()) return;
 
@@ -121,18 +144,24 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
     try {
       let data: any = null;
 
+      // Strategy 1: Local companion server (has real stream URLs)
       try {
-        const response = await fetch(`/api/yd/info?url=${encodeURIComponent(targetUrl.trim())}`);
-        if (response.ok) {
-          data = await response.json();
+        const res = await fetch(`${COMPANION_URL}/info?url=${encodeURIComponent(targetUrl.trim())}`, {
+          signal: AbortSignal.timeout(15000)
+        });
+        if (res.ok) {
+          data = await res.json();
+          if (data.success) {
+            setCompanionAvailable(true);
+          }
         }
-      } catch (apiErr) {
-        console.warn('API route call failed, attempting client fallback:', apiErr);
+      } catch {
+        // Companion not running, fall through
       }
 
-      // Client Fallback using YouTube oEmbed API if API endpoint is unreachable or 404
+      // Strategy 2: oEmbed for metadata (always works, but no stream URLs)
       if (!data || !data.success) {
-        const match = targetUrl.trim().match(/(?:v=|\/shorts\/|\/embed\/|youtu\.be\/|\/v\/|\/e\/)([\w-]{11})/);
+        const match = targetUrl.trim().match(/(?:v=|\/shorts\/|\/embed\/|youtu\.be\/|\/v\/|\/e\/)([\\w-]{11})/);
         const videoId = match ? match[1] : null;
 
         if (!videoId) {
@@ -141,7 +170,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
 
         const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
         if (!oembedRes.ok) {
-          throw new Error('Failed to fetch video details from YouTube. Please check your connection.');
+          throw new Error('Failed to fetch video details from YouTube.');
         }
 
         const oembed = await oembedRes.json();
@@ -156,8 +185,8 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
             durationFormatted: '03:30',
             author: oembed.author_name || 'YouTube Channel',
             authorChannelUrl: oembed.author_url || `https://www.youtube.com/watch?v=${videoId}`,
-            viewCount: '1.5M',
-            rawViewCount: 1500000,
+            viewCount: '—',
+            rawViewCount: 0,
             uploadDate: ''
           },
           formats: {
@@ -200,43 +229,61 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   };
 
   // Initiate Download
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!videoData) return;
-
-    setIsDownloading(true);
-    setDownloadProgress(15);
-    setDownloadSuccess(false);
-    setErrorMsg(null);
 
     const availableFormats = activeTab === 'mp3' ? formats?.audio : formats?.video;
     const selectedFormat = availableFormats?.find(f => f.quality === selectedQuality) || availableFormats?.[0];
 
-    const cleanTitle = videoData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
-    const filename = `${cleanTitle}.${activeTab}`;
+    // If the format has a direct stream URL (from companion), redirect to it
+    if (selectedFormat?.url) {
+      setIsDownloading(true);
+      setDownloadProgress(50);
+      setDownloadSuccess(false);
+      setErrorMsg(null);
 
-    const streamUrl = selectedFormat?.url || '';
-    const downloadApiUrl = `/api/yd/download?url=${encodeURIComponent(urlInput.trim())}&streamUrl=${encodeURIComponent(streamUrl)}&title=${encodeURIComponent(videoData.title)}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
+      const link = document.createElement('a');
+      link.href = selectedFormat.url;
+      link.setAttribute('download', '');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    // Simulate progress indicator while browser initiates file save
-    const progressInterval = setInterval(() => {
-      setDownloadProgress((prev) => (prev >= 90 ? 90 : prev + 15));
-    }, 350);
+      setTimeout(() => {
+        setDownloadProgress(100);
+        setIsDownloading(false);
+        setDownloadSuccess(true);
+        setTimeout(() => setDownloadSuccess(false), 5000);
+      }, 1500);
+      return;
+    }
 
-    // Trigger browser native file download from /api/yd/download attachment response
-    const link = document.createElement('a');
-    link.href = downloadApiUrl;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // If companion is available, use the /download endpoint (302 redirect to CDN)
+    if (companionAvailable) {
+      setIsDownloading(true);
+      setDownloadProgress(30);
+      setDownloadSuccess(false);
+      setErrorMsg(null);
 
-    setTimeout(() => {
-      clearInterval(progressInterval);
-      setDownloadProgress(100);
-      setIsDownloading(false);
-      setDownloadSuccess(true);
-      setTimeout(() => setDownloadSuccess(false), 5000);
-    }, 2500);
+      const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', '');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => {
+        setDownloadProgress(100);
+        setIsDownloading(false);
+        setDownloadSuccess(true);
+        setTimeout(() => setDownloadSuccess(false), 5000);
+      }, 2000);
+      return;
+    }
+
+    // No companion available — show setup guide
+    setShowSetupGuide(true);
   };
 
   return (
@@ -247,6 +294,102 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
 
       {/* Glow Effects */}
       <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-red-600/15 rounded-full blur-[140px] pointer-events-none" />
+
+      {/* Companion Status Badge */}
+      {companionAvailable !== null && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium backdrop-blur-xl border ${companionAvailable ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400 cursor-pointer hover:bg-amber-500/20'}`}
+               onClick={() => !companionAvailable && setShowSetupGuide(true)}>
+            <div className={`w-2 h-2 rounded-full ${companionAvailable ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            {companionAvailable ? 'Engine Connected' : 'Engine Offline — Click to Setup'}
+          </div>
+        </div>
+      )}
+
+      {/* Setup Guide Modal */}
+      <AnimatePresence>
+        {showSetupGuide && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowSetupGuide(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-[#0f0f1a] border border-white/10 rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                  <Zap size={20} className="text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-lg">YD Companion Setup</h3>
+                  <p className="text-gray-400 text-xs">One-time setup for unlimited downloads</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-red-400 shrink-0 mt-0.5">1</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Install Python & yt-dlp</p>
+                    <p className="text-gray-400 text-xs mt-0.5">Make sure Python is installed, then run:</p>
+                    <code className="block mt-2 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-emerald-400 font-mono select-all">pip install yt-dlp</code>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-red-400 shrink-0 mt-0.5">2</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Download & Run Companion</p>
+                    <p className="text-gray-400 text-xs mt-0.5">Download the companion script and run it:</p>
+                    <a href="/yd_companion.py" download className="inline-flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs font-semibold transition-all">
+                      <Download size={14} />
+                      Download yd_companion.py
+                    </a>
+                    <code className="block mt-2 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-emerald-400 font-mono select-all">python yd_companion.py</code>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-red-400 shrink-0 mt-0.5">3</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Ready to Download</p>
+                    <p className="text-gray-400 text-xs mt-0.5">Once the companion is running, come back here and download any video. The badge in the bottom-right will show "Engine Connected".</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowSetupGuide(false);
+                    // Re-check companion
+                    fetch(`${COMPANION_URL}/ping`, { signal: AbortSignal.timeout(2000) })
+                      .then(r => r.json())
+                      .then(d => { if (d.status === 'ok') setCompanionAvailable(true); })
+                      .catch(() => {});
+                  }}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white text-sm font-bold transition-all"
+                >
+                  Done — Check Connection
+                </button>
+                <button
+                  onClick={() => setShowSetupGuide(false)}
+                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-sm font-medium transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header */}
       <header className="relative z-20 w-full max-w-5xl mx-auto px-5 sm:px-8 pt-6 sm:pt-8 pb-4 flex items-center justify-between">
