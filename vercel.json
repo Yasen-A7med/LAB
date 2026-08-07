@@ -1,14 +1,6 @@
 {
   "rewrites": [
     {
-      "source": "/api/yd/info",
-      "destination": "/api/yd_info.py"
-    },
-    {
-      "source": "/api/yd/download",
-      "destination": "/api/yd_download.py"
-    },
-    {
       "source": "/uv/service/(.*)",
       "destination": "/index.html"
     },
