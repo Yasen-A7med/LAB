@@ -221,13 +221,19 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
     const isAudioOnly = activeTab === 'mp3' || audioOption === 'audio_only';
     const isMuted = audioOption === 'muted';
 
-    // Construct download API URL
-    const downloadUrl = `/api/yd/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}&audio=${isAudioOnly ? 'audio_only' : isMuted ? 'false' : 'true'}&title=${encodeURIComponent(videoData.title)}`;
+    // Find direct format stream URL if available
+    const availableFormats = activeTab === 'mp3' ? formats?.audio : formats?.video;
+    const selectedFormat = availableFormats?.find(f => f.quality === selectedQuality) || availableFormats?.[0];
 
-    // Trigger browser download via invisible iframe / anchor
+    const targetDownloadUrl = (selectedFormat && selectedFormat.url)
+      ? selectedFormat.url
+      : `/api/yd/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}&audio=${isAudioOnly ? 'audio_only' : isMuted ? 'false' : 'true'}&title=${encodeURIComponent(videoData.title)}`;
+
+    // Open direct stream URL or 302 redirect link in new tab for instant high-speed browser download
     const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `${videoData.title}.${activeTab}`;
+    link.href = targetDownloadUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

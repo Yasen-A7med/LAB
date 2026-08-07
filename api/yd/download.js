@@ -2,15 +2,7 @@ import ytdl from '@distube/ytdl-core';
 
 const agent = ytdl.createAgent();
 
-// Clean filename string for safe header Content-Disposition
-function sanitizeFilename(name) {
-  return (name || 'youtube_video')
-    .replace(/[^\w\s\-\.\(\)]/gi, '')
-    .replace(/\s+/g, '_')
-    .substring(0, 100);
-}
-
-// Helper to extract video ID
+// Helper to extract 11-character video ID
 function extractVideoId(url) {
   if (!url) return null;
   const cleanUrl = url.trim();
@@ -27,7 +19,6 @@ export default async function handler(req, res) {
   const targetUrl = urlParams.url;
   const targetFormat = urlParams.format || 'mp4'; // 'mp4' or 'mp3'
   const audioMode = urlParams.audio || 'true'; // 'true', 'false', 'audio_only'
-  const title = urlParams.title || 'YouTube_Video';
 
   const videoId = extractVideoId(targetUrl);
 
@@ -37,67 +28,52 @@ export default async function handler(req, res) {
     return new Response(JSON.stringify(errPayload), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
-  const filename = `${sanitizeFilename(title)}.${targetFormat === 'mp3' ? 'mp3' : 'mp4'}`;
   const isAudioOnly = targetFormat === 'mp3' || audioMode === 'audio_only';
 
   try {
-    const streamOptions = {
-      agent,
-      quality: isAudioOnly ? 'highestaudio' : 'highest',
-      filter: isAudioOnly ? 'audioonly' : (audioMode === 'false' ? 'videoonly' : 'videoandaudio')
-    };
+    const info = await ytdl.getInfo(videoId, { agent });
+    const rawFormats = info.formats || [];
 
-    const mediaStream = ytdl(`https://www.youtube.com/watch?v=${videoId}`, streamOptions);
+    let targetStream = null;
 
-    if (res && res.setHeader) {
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Type', isAudioOnly ? 'audio/mpeg' : 'video/mp4');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-
-      mediaStream.pipe(res);
-
-      mediaStream.on('error', (err) => {
-        console.error('Download stream error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Stream downloading failed', details: err.message });
-        }
-      });
-
-      req.on('close', () => {
-        mediaStream.destroy();
-      });
-
-      return;
+    if (isAudioOnly) {
+      targetStream = rawFormats.find(f => f.hasAudio && f.url);
+    } else if (audioMode === 'false') {
+      targetStream = rawFormats.find(f => f.hasVideo && !f.hasAudio && f.url);
+    } else {
+      targetStream = rawFormats.find(f => f.hasVideo && f.hasAudio && f.url) || rawFormats.find(f => f.hasVideo && f.url);
     }
 
-    // Web API ReadableStream fallback for Edge/Vercel standard fetch
-    const webStream = new ReadableStream({
-      start(controller) {
-        mediaStream.on('data', (chunk) => controller.enqueue(chunk));
-        mediaStream.on('end', () => controller.close());
-        mediaStream.on('error', (err) => controller.error(err));
-      },
-      cancel() {
-        mediaStream.destroy();
+    if (targetStream && targetStream.url) {
+      // 302 Redirect directly to Google CDN stream URL to avoid Vercel 10s serverless timeout
+      if (res && res.redirect) {
+        return res.redirect(302, targetStream.url);
       }
-    });
-
-    return new Response(webStream, {
-      headers: {
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Type': isAudioOnly ? 'audio/mpeg' : 'video/mp4',
-        'Access-Control-Allow-Origin': '*'
+      if (res && res.writeHead) {
+        res.writeHead(302, { Location: targetStream.url });
+        return res.end();
       }
-    });
-
-  } catch (error) {
-    console.error('Error in /api/yd/download:', error);
-    if (res && res.status) {
-      return res.status(500).json({ error: 'Failed to initiate download stream', details: error.message });
+      return new Response(null, {
+        status: 302,
+        headers: { Location: targetStream.url }
+      });
     }
-    return new Response(JSON.stringify({ error: 'Failed to initiate download stream', details: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+
+  } catch (err) {
+    console.warn('ytdl-core stream resolution error in download endpoint:', err.message);
   }
+
+  // Fallback direct URL redirect to YouTube stream
+  const fallbackUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  if (res && res.redirect) {
+    return res.redirect(302, fallbackUrl);
+  }
+  if (res && res.writeHead) {
+    res.writeHead(302, { Location: fallbackUrl });
+    return res.end();
+  }
+  return new Response(null, {
+    status: 302,
+    headers: { Location: fallbackUrl }
+  });
 }
