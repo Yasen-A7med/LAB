@@ -275,15 +275,13 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
       setTimeout(() => setDownloadSuccess(false), 5000);
 
     } catch (err: any) {
-      console.warn('Proxy blob download error, triggering direct fallback:', err);
+      console.warn('Proxy blob download error, triggering /api/yd/download fallback:', err);
       
-      // Fallback direct link trigger
+      // Fallback via backend attachment download endpoint
       try {
-        const streamUrl = selectedFormat?.url || `https://www.youtube.com/watch?v=${videoData.id}`;
+        const fallbackEndpoint = `/api/yd/download?streamUrl=${encodeURIComponent(selectedFormat?.url || '')}&url=${encodeURIComponent(urlInput.trim())}&title=${encodeURIComponent(videoData.title)}&format=${activeTab}`;
         const link = document.createElement('a');
-        link.href = streamUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
+        link.href = fallbackEndpoint;
         link.download = filename;
         document.body.appendChild(link);
         link.click();

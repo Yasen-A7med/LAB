@@ -1,9 +1,24 @@
 import ytdl from '@distube/ytdl-core';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const agent = ytdl.createAgent();
+
+// Resolve bundled yt-dlp binary path for local dev and Vercel cloud serverless environment
+function getYtDlpBinaryPath() {
+  const isWin = process.platform === 'win32';
+  const localBin = path.resolve(process.cwd(), isWin ? 'bin/yt-dlp.exe' : 'bin/yt-dlp');
+  if (fs.existsSync(localBin)) {
+    if (!isWin) {
+      try { fs.chmodSync(localBin, 0o755); } catch(e) {}
+    }
+    return localBin;
+  }
+  return isWin ? 'yt-dlp.exe' : 'yt-dlp';
+}
 
 // Helper to extract 11-character video ID
 function extractVideoId(url) {
@@ -17,7 +32,6 @@ function extractVideoId(url) {
   }
 }
 
-// Helper to format duration in seconds
 function formatDuration(seconds) {
   if (!seconds || isNaN(seconds)) return '03:45';
   const sec = Math.floor(Number(seconds));
@@ -83,9 +97,11 @@ export default async function handler(req, res) {
   let videoFormats = [];
   let audioFormats = [];
 
-  // Strategy 1: Attempt yt-dlp binary extraction first if installed
+  // Strategy 1: Attempt bundled yt-dlp binary execution
   try {
-    const { stdout } = await execAsync(`yt-dlp -j "https://www.youtube.com/watch?v=${videoId}"`, { timeout: 10000 });
+    const binPath = getYtDlpBinaryPath();
+    const { stdout } = await execFileAsync(binPath, ['-j', `https://www.youtube.com/watch?v=${videoId}`], { timeout: 15000 });
+    
     if (stdout) {
       const data = JSON.parse(stdout);
       videoDetails = {
@@ -157,10 +173,10 @@ export default async function handler(req, res) {
       audioFormats.sort((a, b) => b.bitrate - a.bitrate);
     }
   } catch (ytDlpErr) {
-    console.warn('yt-dlp execution error or unavailable, falling back to ytdl-core:', ytDlpErr.message);
+    console.warn('yt-dlp bundled binary error, falling back to ytdl-core:', ytDlpErr.message);
   }
 
-  // Strategy 2: Fallback to ytdl-core if yt-dlp did not return video formats
+  // Strategy 2: Fallback to ytdl-core / oEmbed if binary unavailable
   if (videoFormats.length === 0) {
     try {
       const info = await ytdl.getInfo(videoId, { agent });
@@ -230,7 +246,7 @@ export default async function handler(req, res) {
       audioFormats.sort((a, b) => b.bitrate - a.bitrate);
 
     } catch (ytdlErr) {
-      console.warn('ytdl-core error, using oEmbed fallback:', ytdlErr.message);
+      console.warn('ytdl-core fallback error, using oEmbed:', ytdlErr.message);
 
       try {
         const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
