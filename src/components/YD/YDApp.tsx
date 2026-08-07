@@ -122,7 +122,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
       let data: any = null;
 
       try {
-        const response = await fetch(`/api/yd-info?url=${encodeURIComponent(targetUrl.trim())}`);
+        const response = await fetch(`/api/yd/info?url=${encodeURIComponent(targetUrl.trim())}`);
         if (response.ok) {
           data = await response.json();
         }
@@ -216,7 +216,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
 
     try {
       const streamUrl = selectedFormat?.url || '';
-      const downloadEndpoint = `/api/yd-download?streamUrl=${encodeURIComponent(streamUrl)}&url=${encodeURIComponent(urlInput.trim())}&title=${encodeURIComponent(videoData.title)}&format=${activeTab}&audio=${isAudioOnly ? 'audio_only' : 'true'}`;
+      const downloadEndpoint = `/api/yd/download?streamUrl=${encodeURIComponent(streamUrl)}&url=${encodeURIComponent(urlInput.trim())}&title=${encodeURIComponent(videoData.title)}&format=${activeTab}&audio=${isAudioOnly ? 'audio_only' : 'true'}`;
 
       // Simulate download progress indicator
       const progressInterval = setInterval(() => {

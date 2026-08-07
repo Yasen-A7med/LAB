@@ -30,7 +30,6 @@ export default async function handler(req) {
   }
 
   try {
-    // Fetch stream from Google CDN or source
     const streamRes = await fetch(downloadUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -44,7 +43,7 @@ export default async function handler(req) {
       });
     }
 
-    // Force browser download with application/octet-stream and attachment disposition header
+    // Force browser file download with application/octet-stream and attachment disposition header
     return new Response(streamRes.body, {
       status: 200,
       headers: {
