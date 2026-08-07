@@ -1,4 +1,14 @@
 {
+  "functions": {
+    "api/yd/info.js": {
+      "memory": 1024,
+      "maxDuration": 15
+    },
+    "api/yd/download.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
       "source": "/uv/service/(.*)",

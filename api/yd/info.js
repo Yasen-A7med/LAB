@@ -47,7 +47,7 @@ function formatViews(views) {
   return v.toString();
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const urlParams = req.query || Object.fromEntries(new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`).searchParams);
   const targetUrl = urlParams.url;
 
@@ -217,3 +217,5 @@ export default async function handler(req, res) {
     headers: { 'Content-Type': 'application/json' }
   });
 }
+
+export default handler;
