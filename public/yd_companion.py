@@ -346,6 +346,8 @@ class YDHandler(BaseHTTPRequestHandler):
 
             if not filepath:
                 tmpdir = tempfile.mkdtemp(prefix="yd_")
+                has_ffmpeg = check_ffmpeg()
+
                 if is_audio:
                     format_spec = "bestaudio/best"
                     ydl_opts = {
@@ -353,28 +355,45 @@ class YDHandler(BaseHTTPRequestHandler):
                         "no_warnings": True,
                         "format": format_spec,
                         "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
-                        "postprocessors": [{
+                    }
+                    if has_ffmpeg:
+                        ydl_opts["postprocessors"] = [{
                             "key": "FFmpegExtractAudio",
                             "preferredcodec": "mp3",
                             "preferredquality": "192",
-                        }],
-                    }
+                        }]
                 else:
-                    format_spec = (
-                        f"bestvideo[height<={desired_height}]+bestaudio/"
-                        f"best[height<={desired_height}]/bestvideo+bestaudio/best"
-                    )
+                    if has_ffmpeg:
+                        format_spec = (
+                            f"bestvideo[height<={desired_height}]+bestaudio/"
+                            f"best[height<={desired_height}]/bestvideo+bestaudio/best"
+                        )
+                    else:
+                        format_spec = f"best[height<={desired_height}]/best"
+
                     ydl_opts = {
                         "quiet": True,
                         "no_warnings": True,
                         "format": format_spec,
-                        "merge_output_format": "mp4",
+                        "merge_output_format": "mp4" if has_ffmpeg else None,
                         "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
                     }
 
-                print(f"  Downloading: {url} [{quality} {fmt}]")
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([url])
+                print(f"  Downloading: {url} [{quality} {fmt}] (FFmpeg: {'Yes' if has_ffmpeg else 'No'})")
+
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([url])
+                except Exception as dl_err:
+                    print(f"  [Primary Download Warning]: {dl_err}. Attempting raw fallback stream...")
+                    fallback_opts = {
+                        "quiet": True,
+                        "no_warnings": True,
+                        "format": "bestaudio/best" if is_audio else "best",
+                        "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
+                    }
+                    with yt_dlp.YoutubeDL(fallback_opts) as ydl:
+                        ydl.download([url])
 
                 files = glob_mod.glob(os.path.join(tmpdir, "*"))
                 if not files:

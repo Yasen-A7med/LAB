@@ -88,6 +88,7 @@ export interface DownloadTaskItem {
   format: 'mp4' | 'mp3';
   quality: string;
   status: 'downloading' | 'completed' | 'failed';
+  progress?: number;
   error?: string;
   timestamp: string;
 }
@@ -151,11 +152,13 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         if (res.ok) {
           const data = await res.json();
           if (data.status === 'completed') {
-            setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
+            setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed', progress: 100 } : t));
             clearInterval(interval);
           } else if (data.status === 'failed') {
             setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'failed', error: data.error || 'Download failed' } : t));
             clearInterval(interval);
+          } else if (data.progress) {
+            setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, progress: data.progress } : t));
           }
         }
       } catch {}
@@ -585,7 +588,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
                             {task.status === 'downloading' && (
                               <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold">
                                 <Loader2 size={13} className="animate-spin" />
-                                <span>Downloading / Preparing...</span>
+                                <span>Downloading / Preparing{task.progress ? ` (${task.progress}%)` : ''}...</span>
                               </div>
                             )}
 
@@ -597,9 +600,16 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
                             )}
 
                             {task.status === 'failed' && (
-                              <div className="flex items-center gap-1.5 text-rose-400 text-xs font-bold">
-                                <AlertCircle size={13} />
-                                <span>Failed</span>
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                <div className="flex items-center gap-1.5 text-rose-400 text-xs font-bold">
+                                  <AlertCircle size={13} />
+                                  <span>Failed</span>
+                                </div>
+                                {task.error && (
+                                  <span className="text-[10px] text-rose-300/80 font-mono truncate max-w-[170px]" title={task.error}>
+                                    {task.error}
+                                  </span>
+                                )}
                               </div>
                             )}
 
