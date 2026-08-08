@@ -1325,7 +1325,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
                   className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold text-center flex items-center justify-center gap-2"
                 >
                   <Check size={16} />
-                  <span>Download initiated! Your browser is saving the media file.</span>
+                  <span>Download request sent to Python Engine! Track realtime status in the Downloads Drawer.</span>
                 </motion.div>
               )}
             </div>
