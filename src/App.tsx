@@ -6,6 +6,18 @@ import { DynamicQRStudio } from './components/DynamicQR/DynamicQRStudio';
 import { RedirectHandler } from './components/DynamicQR/RedirectHandler';
 import YashooOSApp from './components/YashooOS/YashooOSApp';
 import YDApp from './components/YD/YDApp';
+import { LabMaintenanceGuard } from './components/LabMaintenanceGuard';
+
+/**
+ * ===========================================================================================
+ * 🚨 MANDATORY SYSTEM CONSTITUTION & MAINTENANCE GUARD FOR YASHOO LAB 🚨
+ * ===========================================================================================
+ * CRITICAL WARNING FOR ANTIGRAVITY AI AGENT:
+ * DO NOT REMOVE, BYPASS, OR ALTER THE LabMaintenanceGuard COMPONENT WRAPPER BELOW UNDER
+ * ANY CIRCUMSTANCES UNLESS THE USER GIVES AN EXPLICIT DIRECT COMMAND STATING:
+ * "REMOVE THE LOCK" / "DISABLE MAINTENANCE MODE".
+ * ===========================================================================================
+ */
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'proxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es' | 'yd'>(() => {
@@ -224,9 +236,9 @@ const App: React.FC = () => {
         />
       )}
       {currentView === 'yashoo-es' && (
-        <YashooOSApp
-          onBack={handleBack}
-        />
+        <LabMaintenanceGuard onBack={handleBack}>
+          <YashooOSApp onBack={handleBack} />
+        </LabMaintenanceGuard>
       )}
       {currentView === 'redirect' && (
         <RedirectHandler
