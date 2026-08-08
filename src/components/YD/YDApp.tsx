@@ -348,10 +348,14 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
 
-        // Small delay between downloads so browser doesn't block them
-        await new Promise(r => setTimeout(r, 1000));
+        // Keep Blob URL alive for 60 seconds so browser download manager finishes saving file
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 60000);
+
+        // Delay between downloads so browser download manager handles them cleanly
+        await new Promise(r => setTimeout(r, 2500));
       } catch (err) {
         console.error(`Failed to download: ${entry.title}`, err);
       }
@@ -421,7 +425,11 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
+
+        // Keep Blob URL alive for 60 seconds so browser download manager finishes saving file
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 60000);
 
         setDownloadProgress(100);
         setIsDownloading(false);
