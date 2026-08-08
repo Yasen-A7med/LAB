@@ -10,7 +10,7 @@ import YDApp from './components/YD/YDApp';
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es' | 'yd'>(() => {
     const path = window.location.pathname;
-    if (path === '/ultraproxy') return 'ultraproxy';
+    if (path === '/proxy') return 'ultraproxy';
     if (path === '/thanawya') return 'thanawya';
     if (path === '/qr') return 'qr';
     if (path === '/yd') return 'yd';
@@ -32,7 +32,7 @@ const App: React.FC = () => {
 
     const handlePopState = () => {
       const path = window.location.pathname;
-      if (path === '/ultraproxy') {
+      if (path === '/proxy') {
         setCurrentView('ultraproxy');
       } else if (path === '/thanawya') {
         setCurrentView('thanawya');
@@ -172,7 +172,7 @@ const App: React.FC = () => {
 
   const handleLaunch = (id: string) => {
     if (id === 'ultraproxy') {
-      window.open('/ultraproxy', '_blank');
+      window.open('/proxy', '_blank');
     } else if (id === 'thanawya') {
       window.open('/thanawya', '_blank');
     } else if (id === 'qr') {

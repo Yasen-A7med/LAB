@@ -39,7 +39,6 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
   const [whatsappLink, setWhatsappLink] = useState('');
   const [adminPasscode, setAdminPasscode] = useState('admin');
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
-  const [loadingSettings, setLoadingSettings] = useState(true);
 
   // RSVP Form State
   const [guestName, setGuestName] = useState('');
