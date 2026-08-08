@@ -35,6 +35,9 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
+DOWNLOAD_PROGRESS = {}
+
+
 
 def format_bytes(b):
     if not b or b == 0:
