@@ -37,8 +37,9 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
   const [eventDetails, setEventDetails] = useState('');
   const [eventLocationLink, setEventLocationLink] = useState('');
   const [whatsappLink, setWhatsappLink] = useState('');
+  const [adminPasscode, setAdminPasscode] = useState('admin');
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
-  const [_loadingSettings, setLoadingSettings] = useState(true);
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
   // RSVP Form State
   const [guestName, setGuestName] = useState('');
@@ -74,7 +75,6 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
   // Fetch Event Settings
   useEffect(() => {
     const fetchEventData = async () => {
-      setLoadingSettings(true);
       try {
         const { data, error } = await supabase
           .from('settings')
@@ -93,12 +93,11 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
           if (map['event_details']) setEventDetails(map['event_details']);
           if (map['event_location_link']) setEventLocationLink(map['event_location_link']);
           if (map['whatsapp_link']) setWhatsappLink(map['whatsapp_link']);
+          if (map['admin_passcode']) setAdminPasscode(map['admin_passcode']);
           if (map['is_maintenance_mode'] === 'true') setIsMaintenanceMode(true);
         }
       } catch (e) {
         console.warn('Failed to load event details:', e);
-      } finally {
-        setLoadingSettings(false);
       }
     };
 
@@ -114,7 +113,7 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
     }
   }, []);
 
-  // Handle New Guest Registration
+  // Handle New Guest Registration with strict email normalization
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     const email = guestEmail.trim().toLowerCase();
@@ -220,13 +219,13 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
     }
   };
 
-  // Handle Maintenance Mode Email Submission
+  // Handle Maintenance Mode Email Submission / Admin Keyword
   const handleMaintenanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const val = subscriberInput.trim();
     if (!val) return;
 
-    if (val.toLowerCase() === 'admin') {
+    if (val.toLowerCase() === adminPasscode.toLowerCase()) {
       onUnlockAdmin();
       return;
     }
@@ -264,7 +263,8 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
   // Handle Admin Passcode Submit
   const handleAdminAuth = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPin.trim().toLowerCase() === 'admin') {
+    const entered = adminPin.trim().toLowerCase();
+    if (entered === adminPasscode.toLowerCase() || entered === 'admin') {
       setShowAdminModal(false);
       onUnlockAdmin();
     } else {
@@ -616,7 +616,7 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
               <Lock size={22} />
             </div>
             <h3 className="text-lg font-bold mb-1">Organizer Unlock</h3>
-            <p className="text-xs text-gray-400 mb-6">Enter admin keyword to unlock management console.</p>
+            <p className="text-xs text-gray-400 mb-6">Enter admin passcode to unlock management console.</p>
 
             <form onSubmit={handleAdminAuth} className="flex flex-col gap-3">
               <input
@@ -627,7 +627,7 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
                 placeholder="Enter password..."
                 className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-400 rounded-xl px-4 py-3 text-sm text-center outline-none"
               />
-              {pinError && <span className="text-xs text-red-400">Incorrect password</span>}
+              {pinError && <span className="text-xs text-red-400">Incorrect passcode</span>}
               <button
                 type="submit"
                 className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 rounded-xl text-xs sm:text-sm transition-all"
