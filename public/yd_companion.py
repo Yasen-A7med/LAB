@@ -16,7 +16,7 @@ import json
 import os
 import re
 import sys
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 try:
@@ -36,6 +36,15 @@ ALLOWED_ORIGINS = [
 ]
 
 DOWNLOAD_PROGRESS = {}
+
+
+def normalize_url(url):
+    if not url:
+        return ""
+    match = re.search(r'(?:v=|\/|be\/)([a-zA-Z0-9_-]{11})', url)
+    if match:
+        return f"https://www.youtube.com/watch?v={match.group(1)}"
+    return url.strip()
 
 
 
@@ -116,7 +125,7 @@ class YDHandler(BaseHTTPRequestHandler):
 
         # Realtime Download Status Check
         if path == "/status":
-            url = qs.get("url", [""])[0]
+            url = normalize_url(qs.get("url", [""])[0])
             fmt = qs.get("format", ["mp4"])[0]
             quality = qs.get("quality", ["720p"])[0]
             import hashlib
@@ -318,6 +327,7 @@ class YDHandler(BaseHTTPRequestHandler):
         import time
 
         try:
+            url = normalize_url(url)
             is_audio = fmt == "mp3"
             desired_height = 720
             try:
@@ -505,7 +515,7 @@ def main():
     print(f"  Server:  http://localhost:{PORT}")
     print(f"  Status:  Ready — open the YD web app to start downloading.\n")
 
-    server = HTTPServer(("127.0.0.1", PORT), YDHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", PORT), YDHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

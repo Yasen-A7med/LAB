@@ -391,7 +391,9 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
       setBatchProgress({ current: i + 1, total: selected.length, currentTitle: entry.title });
 
       try {
-        const videoUrl = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
+        const rawVideoUrl = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
+        const match = rawVideoUrl.match(/(?:v=|\/|be\/)([a-zA-Z0-9_-]{11})/);
+        const videoUrl = match ? `https://www.youtube.com/watch?v=${match[1]}` : rawVideoUrl.trim();
         const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(videoUrl)}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
         // Register in Download Manager Queue
@@ -400,7 +402,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         // Trigger native download via iframe to keep downloads isolated and active
         triggerNativeDownload(downloadUrl);
 
-        // Wait before triggering next download to allow Python server to process sequentially
+        // Wait before triggering next download to allow Python server to process smoothly
         await new Promise(r => setTimeout(r, 4000));
       } catch (err) {
         console.error(`Failed to download: ${entry.title}`, err);
