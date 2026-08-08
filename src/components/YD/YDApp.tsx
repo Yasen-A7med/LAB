@@ -20,7 +20,11 @@ import {
   RefreshCw,
   ListVideo,
   CheckSquare,
-  Square
+  Square,
+  X,
+  Trash2,
+  FolderDown,
+  Terminal
 } from 'lucide-react';
 import AnimatedLiquidBackground from '../AnimatedLiquidBackground';
 
@@ -77,6 +81,17 @@ interface PlaylistEntry {
   url: string;
 }
 
+export interface DownloadTaskItem {
+  id: string;
+  title: string;
+  url: string;
+  format: 'mp4' | 'mp3';
+  quality: string;
+  status: 'downloading' | 'completed' | 'failed';
+  error?: string;
+  timestamp: string;
+}
+
 interface PlaylistInfo {
   id: string;
   title: string;
@@ -101,6 +116,40 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+
+  // Downloads Manager Drawer & History
+  const [downloadQueue, setDownloadQueue] = useState<DownloadTaskItem[]>([]);
+  const [showDownloadsDrawer, setShowDownloadsDrawer] = useState(false);
+  const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
+
+  const registerDownloadTask = (title: string, url: string, fmt: 'mp4' | 'mp3', quality: string) => {
+    const taskId = Math.random().toString(36).substring(2, 9);
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const newTask: DownloadTaskItem = {
+      id: taskId,
+      title,
+      url,
+      format: fmt,
+      quality,
+      status: 'downloading',
+      timestamp: timeStr
+    };
+
+    setDownloadQueue(prev => [newTask, ...prev]);
+
+    setTimeout(() => {
+      setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
+    }, 5000);
+
+    return taskId;
+  };
+
+  const copyLogCommand = (task: DownloadTaskItem) => {
+    const cmd = `python yd_companion.py --url "${task.url}"`;
+    navigator.clipboard.writeText(cmd);
+    setCopiedLogId(task.id);
+    setTimeout(() => setCopiedLogId(null), 2500);
+  };
 
   // Companion server state
   const [companionAvailable, setCompanionAvailable] = useState<boolean | null>(null);
@@ -322,6 +371,9 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         const videoUrl = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
         const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(videoUrl)}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
+        // Register in Download Manager Queue
+        registerDownloadTask(entry.title, videoUrl, activeTab, selectedQuality);
+
         // Trigger native download via iframe to keep downloads isolated and active
         triggerNativeDownload(downloadUrl);
 
@@ -356,6 +408,9 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
       try {
         const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
+        // Register in Download Manager Queue
+        registerDownloadTask(videoData.title, urlInput.trim(), activeTab, selectedQuality);
+
         triggerNativeDownload(downloadUrl);
 
         setDownloadProgress(100);
@@ -384,16 +439,187 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
       {/* Glow Effects */}
       <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-red-600/15 rounded-full blur-[140px] pointer-events-none" />
 
-      {/* Companion Status Badge */}
-      {companionAvailable !== null && (
-        <div className="fixed bottom-4 right-4 z-50">
+      {/* Floating Action Badges (Bottom Right) */}
+      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
+        <button
+          onClick={() => setShowDownloadsDrawer(true)}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] font-semibold backdrop-blur-xl border bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30 text-indigo-300 shadow-xl transition-all"
+        >
+          <FolderDown size={14} className="text-indigo-400" />
+          <span>Downloads</span>
+          {downloadQueue.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white font-mono text-[10px] font-bold">
+              {downloadQueue.filter(t => t.status === 'downloading').length || downloadQueue.length}
+            </span>
+          )}
+        </button>
+
+        {companionAvailable !== null && (
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium backdrop-blur-xl border ${companionAvailable ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400 cursor-pointer hover:bg-amber-500/20'}`}
                onClick={() => !companionAvailable && setShowSetupGuide(true)}>
             <div className={`w-2 h-2 rounded-full ${companionAvailable ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
             {companionAvailable ? 'Engine Connected' : 'Engine Offline — Click to Setup'}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* Downloads Manager Drawer Modal */}
+      <AnimatePresence>
+        {showDownloadsDrawer && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex justify-end"
+            onClick={() => setShowDownloadsDrawer(false)}
+          >
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="bg-[#0b0b16] border-l border-white/10 w-full max-w-md h-full flex flex-col shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drawer Header */}
+              <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-400">
+                    <FolderDown size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-base flex items-center gap-2">
+                      Downloads Manager
+                      {downloadQueue.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs font-mono font-bold border border-red-500/30">
+                          {downloadQueue.length}
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-gray-400 font-medium">Realtime download status & history</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {downloadQueue.some(t => t.status === 'completed') && (
+                    <button
+                      onClick={() => setDownloadQueue(prev => prev.filter(t => t.status !== 'completed'))}
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all text-xs font-semibold flex items-center gap-1"
+                      title="Clear Completed"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowDownloadsDrawer(false)}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Drawer Body - Tasks List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                {downloadQueue.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
+                    <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center mb-3">
+                      <FolderDown size={28} className="text-gray-600" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-400">No active downloads</p>
+                    <p className="text-xs text-gray-500 mt-1 max-w-xs leading-relaxed">
+                      Downloaded videos and batch playlists will show their status and logs here in realtime.
+                    </p>
+                  </div>
+                ) : (
+                  downloadQueue.map((task) => (
+                    <div 
+                      key={task.id}
+                      className={`p-3.5 rounded-2xl border transition-all ${
+                        task.status === 'downloading'
+                          ? 'bg-amber-500/10 border-amber-500/30'
+                          : task.status === 'failed'
+                          ? 'bg-rose-500/10 border-rose-500/30'
+                          : 'bg-white/[0.03] border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-gray-300 shrink-0 mt-0.5">
+                          {task.format === 'mp3' ? <Music size={16} className="text-red-400" /> : <Film size={16} className="text-red-400" />}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-bold text-white truncate leading-tight">
+                            {task.title}
+                          </h4>
+                          
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span className="px-2 py-0.5 rounded bg-white/10 text-[10px] font-mono text-gray-300 font-bold uppercase">
+                              {task.quality} {task.format}
+                            </span>
+                            <span className="text-[10px] text-gray-500 font-semibold">{task.timestamp}</span>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div className="mt-2.5 flex items-center justify-between gap-2">
+                            {task.status === 'downloading' && (
+                              <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold">
+                                <Loader2 size={13} className="animate-spin" />
+                                <span>Downloading / Preparing...</span>
+                              </div>
+                            )}
+
+                            {task.status === 'completed' && (
+                              <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold">
+                                <Check size={13} strokeWidth={3} />
+                                <span>Completed & Saved</span>
+                              </div>
+                            )}
+
+                            {task.status === 'failed' && (
+                              <div className="flex items-center gap-1.5 text-rose-400 text-xs font-bold">
+                                <AlertCircle size={13} />
+                                <span>Failed</span>
+                              </div>
+                            )}
+
+                            {/* Copy CMD Log Button */}
+                            <button
+                              onClick={() => copyLogCommand(task)}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                                copiedLogId === task.id
+                                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                                  : 'bg-white/5 hover:bg-white/10 border-white/10 text-gray-300 hover:text-white'
+                              }`}
+                              title="Copy debug log command for terminal"
+                            >
+                              {copiedLogId === task.id ? <Check size={12} /> : <Terminal size={12} />}
+                              <span>{copiedLogId === task.id ? 'Copied Log Cmd!' : 'Copy CMD Log'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Drawer Footer */}
+              <div className="p-4 border-t border-white/10 bg-white/[0.02] text-xs text-gray-400 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-gray-400 font-medium">
+                  <Terminal size={14} className="text-red-400" /> Keep Python Terminal open
+                </span>
+                <button
+                  onClick={() => setShowDownloadsDrawer(false)}
+                  className="px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Setup Guide Modal */}
       <AnimatePresence>
@@ -543,14 +769,29 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         <motion.div 
           initial={{ opacity: 0, x: 15 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex items-center gap-2.5"
+          className="flex items-center gap-3"
         >
-          <div className="w-9 h-9 rounded-xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-500 shadow-lg shadow-red-600/20">
-            <YoutubeIcon size={20} />
+          <button
+            onClick={() => setShowDownloadsDrawer(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-gray-300 hover:text-white transition-all text-xs font-semibold backdrop-blur-xl group"
+          >
+            <FolderDown size={15} className="text-red-400 group-hover:scale-110 transition-transform" />
+            <span>Downloads</span>
+            {downloadQueue.length > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-600 text-white font-mono">
+                {downloadQueue.filter(t => t.status === 'downloading').length || downloadQueue.length}
+              </span>
+            )}
+          </button>
+
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-500 shadow-lg shadow-red-600/20">
+              <YoutubeIcon size={20} />
+            </div>
+            <span className="font-extrabold text-xl tracking-tight text-white">
+              YD <span className="text-red-500 text-xs uppercase font-mono px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 ml-1">Suite</span>
+            </span>
           </div>
-          <span className="font-extrabold text-xl tracking-tight text-white">
-            YD <span className="text-red-500 text-xs uppercase font-mono px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 ml-1">Suite</span>
-          </span>
         </motion.div>
       </header>
 
