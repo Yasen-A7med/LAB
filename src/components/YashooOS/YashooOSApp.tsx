@@ -23,12 +23,16 @@ import {
   ToggleRight,
   ShieldCheck,
   UserPlus,
-  Users
+  Users,
+  Wifi,
+  WifiOff,
+  KeyRound,
+  ShieldAlert,
+  Mail
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { TicketPassModal } from './TicketPassModal';
 import { QRCameraScanner } from './QRCameraScanner';
-import { PublicEventLanding } from './PublicEventLanding';
 
 interface YashooOSAppProps {
   onBack: () => void;
@@ -60,13 +64,18 @@ interface SubscriberItem {
 export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   const DEFAULT_PROJECT_ID = '13975872-827c-4eea-81e2-0b9dc1ef5ba6';
 
-  // Admin Lock state (Scoped to local browser session)
+  // Admin Lock state (Scoped strictly to this admin browser session)
   const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
     return (
       sessionStorage.getItem('yashoo_es_admin_unlocked') === 'true' ||
       localStorage.getItem('yashoo_es_admin_unlocked') === 'true'
     );
   });
+
+  // Maintenance input & status
+  const [subscriberInput, setSubscriberInput] = useState('');
+  const [submittingSubscriber, setSubmittingSubscriber] = useState(false);
+  const [subscribeStatus, setSubscribeStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   // Active view tab when unlocked in Admin Mode
   const [activeTab, setActiveTab] = useState<'projects' | 'settings' | 'scanner' | 'guests' | 'subscribers'>('guests');
@@ -90,9 +99,14 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   const [smtpHost, setSmtpHost] = useState('');
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
-  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [adminPasscode, setAdminPasscode] = useState('admin');
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Auto-sync & Network state
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   // Guests state
   const [guests, setGuests] = useState<GuestItem[]>([]);
@@ -116,11 +130,65 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   const [selectedTicketGuest, setSelectedTicketGuest] = useState<GuestItem | null>(null);
   const [showPassModal, setShowPassModal] = useState(false);
 
-  // Unlock Admin handler
-  const handleUnlockAdmin = () => {
-    sessionStorage.setItem('yashoo_es_admin_unlocked', 'true');
-    localStorage.setItem('yashoo_es_admin_unlocked', 'true');
-    setIsUnlocked(true);
+  // Detect Network Status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Secret Admin Keyword Bypass or Email Registration
+  const handleMaintenanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = subscriberInput.trim();
+    if (!val) return;
+
+    // Secret Admin Keyword Bypass
+    const targetPass = (adminPasscode || 'admin').toLowerCase();
+    if (val.toLowerCase() === targetPass || val.toLowerCase() === 'admin') {
+      sessionStorage.setItem('yashoo_es_admin_unlocked', 'true');
+      localStorage.setItem('yashoo_es_admin_unlocked', 'true');
+      setIsUnlocked(true);
+      setSubscriberInput('');
+      return;
+    }
+
+    // Normal User Email Registration during Maintenance
+    setSubmittingSubscriber(true);
+    setSubscribeStatus(null);
+    try {
+      const { error } = await supabase
+        .from('maintenance_subscribers')
+        .insert({
+          project_id: selectedProjectId || 'yashoo-es',
+          email: val.toLowerCase(),
+        });
+
+      if (!error) {
+        setSubscribeStatus({
+          success: true,
+          message: 'Your email has been registered! You will be notified as soon as maintenance is complete. ✨',
+        });
+        setSubscriberInput('');
+      } else {
+        setSubscribeStatus({
+          success: false,
+          message: 'Failed to save email. Please try again.',
+        });
+      }
+    } catch {
+      setSubscribeStatus({
+        success: false,
+        message: 'Network error. Please try again.',
+      });
+    } finally {
+      setSubmittingSubscriber(false);
+    }
   };
 
   const handleLockAdmin = () => {
@@ -140,6 +208,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
 
       if (!error && data) {
         setProjects(data);
+        localStorage.setItem('yashoo_es_cached_projects', JSON.stringify(data));
         const match = data.find((p) => p.id === selectedProjectId);
         if (match) {
           setSelectedProjectName(match.name);
@@ -148,8 +217,11 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
           setSelectedProjectName(data[0].name);
         }
       }
-    } catch (e) {
-      console.warn('Failed to fetch projects:', e);
+    } catch {
+      const cached = localStorage.getItem('yashoo_es_cached_projects');
+      if (cached) {
+        try { setProjects(JSON.parse(cached)); } catch {}
+      }
     } finally {
       setLoadingProjects(false);
     }
@@ -234,7 +306,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
           map[item.key] = item.value;
         });
 
-        setEventName(map['event_name'] || 'Yashoo ES Conference');
+        setEventName(map['event_name'] || 'Yashoo ES Main');
         setEventAddress(map['event_address'] || '');
         setEventDetails(map['event_details'] || '');
         setEventLocationLink(map['event_location_link'] || '');
@@ -244,10 +316,21 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
         setSmtpHost(map['smtp_host'] || '');
         setSmtpUser(map['smtp_user'] || '');
         setSmtpPass(map['smtp_pass'] || '');
-        setIsMaintenanceMode(map['is_maintenance_mode'] === 'true');
+        setAdminPasscode(map['admin_passcode'] || 'admin');
+        setIsMaintenanceMode(map['is_maintenance_mode'] !== 'false');
+
+        localStorage.setItem(`yashoo_es_cached_settings_${projId}`, JSON.stringify(map));
       }
-    } catch (e) {
-      console.warn('Failed to load settings:', e);
+    } catch {
+      const cached = localStorage.getItem(`yashoo_es_cached_settings_${projId}`);
+      if (cached) {
+        try {
+          const map = JSON.parse(cached);
+          setEventName(map['event_name'] || 'Yashoo ES Main');
+          setEventAddress(map['event_address'] || '');
+          setAdminPasscode(map['admin_passcode'] || 'admin');
+        } catch {}
+      }
     }
   };
 
@@ -268,6 +351,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
       { project_id: selectedProjectId, key: 'smtp_host', value: smtpHost },
       { project_id: selectedProjectId, key: 'smtp_user', value: smtpUser },
       { project_id: selectedProjectId, key: 'smtp_pass', value: smtpPass },
+      { project_id: selectedProjectId, key: 'admin_passcode', value: adminPasscode.trim() || 'admin' },
       { project_id: selectedProjectId, key: 'is_maintenance_mode', value: String(isMaintenanceMode) },
     ];
 
@@ -285,8 +369,8 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   };
 
   // Fetch Guests for Active Project
-  const fetchGuests = async (projId: string) => {
-    setLoadingGuests(true);
+  const fetchGuests = async (projId: string, quiet = false) => {
+    if (!quiet) setLoadingGuests(true);
     try {
       const { data, error } = await supabase
         .from('guests')
@@ -296,13 +380,28 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
 
       if (!error && data) {
         setGuests(data as GuestItem[]);
+        localStorage.setItem(`yashoo_es_cached_guests_${projId}`, JSON.stringify(data));
       }
-    } catch (e) {
-      console.warn('Failed fetching guests:', e);
+    } catch {
+      const cached = localStorage.getItem(`yashoo_es_cached_guests_${projId}`);
+      if (cached) {
+        try { setGuests(JSON.parse(cached)); } catch {}
+      }
     } finally {
-      setLoadingGuests(false);
+      if (!quiet) setLoadingGuests(false);
     }
   };
+
+  // Auto-sync polling every 5 seconds for live multi-device gate check-in
+  useEffect(() => {
+    if (!isUnlocked || !selectedProjectId || !autoRefresh) return;
+
+    const interval = setInterval(() => {
+      fetchGuests(selectedProjectId, true);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isUnlocked, selectedProjectId, autoRefresh]);
 
   // Add Guest
   const handleAddGuest = async (e: React.FormEvent) => {
@@ -350,7 +449,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
     }
   };
 
-  // Handle Check-in / Verification (Accepts QR payload string, Ticket ID, or Email)
+  // Handle Check-in / Verification
   const handleCheckin = async (scannedString: string) => {
     const raw = scannedString.trim();
     if (!raw) return;
@@ -369,8 +468,12 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
       // Plain text search
     }
 
+    if (targetEmailOrId.includes('ticket=')) {
+      const match = targetEmailOrId.match(/ticket=([^&]+)/);
+      if (match && match[1]) targetEmailOrId = match[1].toLowerCase();
+    }
+
     try {
-      // Find guest
       const match = guests.find(
         (g) =>
           g.email.toLowerCase() === targetEmailOrId ||
@@ -388,27 +491,18 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
           return;
         }
 
-        // Update database
-        const { error } = await supabase
-          .from('guests')
-          .update({ status: 'checked-in' })
-          .eq('id', match.id);
+        setGuests((prev) =>
+          prev.map((g) => (g.id === match.id ? { ...g, status: 'checked-in' } : g))
+        );
+        setScanStatus({
+          success: true,
+          type: 'success',
+          message: `✅ Check-in Success: ${match.name || match.email} (${match.ticket_id || match.id.slice(0, 8)})`,
+        });
+        setScanInput('');
 
-        if (!error) {
-          setGuests((prev) =>
-            prev.map((g) => (g.id === match.id ? { ...g, status: 'checked-in' } : g))
-          );
-          setScanStatus({
-            success: true,
-            type: 'success',
-            message: `✅ Check-in Success: ${match.name || match.email} (${match.ticket_id || match.id.slice(0, 8)})`,
-          });
-          setScanInput('');
-        } else {
-          setScanStatus({ success: false, type: 'error', message: 'Database update failed.' });
-        }
+        await supabase.from('guests').update({ status: 'checked-in' }).eq('id', match.id);
       } else {
-        // Fallback search in Supabase if not in local memory state
         const { data } = await supabase
           .from('guests')
           .select('*')
@@ -513,15 +607,96 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   }, [isUnlocked, selectedProjectId]);
 
   // ─────────────────────────────────────────────────────────────
-  // 🔒 PUBLIC / GUEST EVENT LANDING PAGE (WHEN NOT UNLOCKED IN ADMIN)
+  // 🔒 MAINTENANCE / DISABLED SCREEN (DEFAULT UNLESS UNLOCKED BY ADMIN)
   // ─────────────────────────────────────────────────────────────
   if (!isUnlocked) {
     return (
-      <PublicEventLanding
-        onBack={onBack}
-        selectedProjectId={selectedProjectId}
-        onUnlockAdmin={handleUnlockAdmin}
-      />
+      <div className="min-h-screen min-h-[100dvh] bg-[#040409] text-white flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden select-none">
+        
+        {/* Background Ambient Glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] bg-amber-500/10 rounded-full blur-[140px]" />
+          <div className="absolute bottom-10 right-10 w-72 h-72 bg-purple-500/10 rounded-full blur-[120px]" />
+        </div>
+
+        {/* Top Back Button */}
+        <div className="absolute top-6 left-6 z-20">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-gray-300 hover:text-white transition-all text-xs font-medium"
+          >
+            <ArrowLeft size={16} />
+            <span>Back to Dashboard</span>
+          </button>
+        </div>
+
+        {/* Maintenance / System Disabled Card */}
+        <div className="w-full max-w-lg bg-[#0a0a12]/90 border border-white/10 rounded-3xl p-6 sm:p-10 backdrop-blur-2xl shadow-2xl flex flex-col items-center text-center relative z-10 my-auto">
+          
+          {/* Icon Badge */}
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-6 shadow-lg shadow-amber-500/5">
+            <Wrench size={32} className="animate-pulse" />
+          </div>
+
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-4">
+            <ShieldAlert size={14} />
+            <span>System Under Maintenance</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-3">
+            System Under Maintenance
+          </h1>
+
+          <p className="text-xs sm:text-sm text-gray-400 leading-relaxed mb-8 max-w-md">
+            We are currently upgrading and optimizing <strong className="text-white">Yashoo ES</strong> services to deliver the best experience. Enter your email to be notified as soon as maintenance is complete.
+          </p>
+
+          {/* Email Registration / Secret Admin Password Form */}
+          <form onSubmit={handleMaintenanceSubmit} className="w-full flex flex-col gap-3">
+            <div className="relative w-full">
+              <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={subscriberInput}
+                onChange={(e) => setSubscriberInput(e.target.value)}
+                placeholder="Enter your email to get notified..."
+                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3.5 text-xs sm:text-sm text-white outline-none transition-all placeholder:text-gray-500 text-left"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submittingSubscriber}
+              className="w-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-extrabold py-3.5 px-6 rounded-2xl text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              {submittingSubscriber ? (
+                <RefreshCw size={18} className="animate-spin" />
+              ) : (
+                <>
+                  <Bell size={18} />
+                  <span>Notify Me When Fixed</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Status Message Toast */}
+          {subscribeStatus && (
+            <div
+              className={`mt-4 w-full p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 border ${
+                subscribeStatus.success
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-red-500/10 border-red-500/30 text-red-400'
+              }`}
+            >
+              {subscribeStatus.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span>{subscribeStatus.message}</span>
+            </div>
+          )}
+
+        </div>
+
+      </div>
     );
   }
 
@@ -571,6 +746,14 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                 <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">Yashoo ES</span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full flex items-center gap-1">
                   <Unlock size={10} /> Admin OS
+                </span>
+                
+                {/* Network Status Badge */}
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 border ${
+                  isOnline ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
+                }`}>
+                  {isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
+                  <span>{isOnline ? 'Live' : 'Offline Mode'}</span>
                 </span>
               </div>
               <span className="text-[11px] text-gray-400 font-medium block truncate max-w-[150px] sm:max-w-xs">
@@ -638,7 +821,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
           <button
             onClick={handleLockAdmin}
             className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 border border-white/10 text-gray-400 hover:text-red-400 transition-all text-xs"
-            title="Lock Admin & Switch to Public View"
+            title="Lock Admin & Return to Maintenance Screen"
           >
             <Lock size={15} />
           </button>
@@ -699,8 +882,19 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                 </select>
               </div>
 
-              {/* Action Buttons: Export CSV + Add Guest */}
+              {/* Action Buttons: Auto-sync + Export CSV + Add Guest */}
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAutoRefresh((prev) => !prev)}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    autoRefresh ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-white/[0.04] border-white/10 text-gray-500'
+                  }`}
+                  title="Toggle 5s Live Auto-Sync Across Gatekeeper Devices"
+                >
+                  <RefreshCw size={14} className={autoRefresh ? 'animate-spin' : ''} />
+                  <span>{autoRefresh ? 'Live Sync ON' : 'Sync Paused'}</span>
+                </button>
+
                 <button
                   onClick={exportGuestsCSV}
                   disabled={guests.length === 0}
@@ -853,9 +1047,15 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
 
             {/* Live Camera Viewfinder */}
             <div className="bg-[#0b0b14]/80 border border-white/10 rounded-3xl p-6 backdrop-blur-xl flex flex-col items-center gap-4">
-              <div className="flex items-center gap-2 text-white font-extrabold text-base mb-1">
-                <QrCode size={20} className="text-amber-400" />
-                <span>Live Camera Ticket Scanner</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2 text-white font-extrabold text-base">
+                  <QrCode size={20} className="text-amber-400" />
+                  <span>Ticket QR Scanner</span>
+                </div>
+
+                <span className="text-[11px] font-semibold text-gray-400 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/10">
+                  Gatekeeper Scanner Mode
+                </span>
               </div>
 
               <QRCameraScanner
@@ -920,7 +1120,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-extrabold text-white">Event Control Panel</h2>
-                <p className="text-xs text-gray-400">Configure public portal & maintenance parameters for {selectedProjectName}</p>
+                <p className="text-xs text-gray-400">Configure parameters for {selectedProjectName}</p>
               </div>
 
               <button
@@ -948,7 +1148,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                   <span>Maintenance Mode Status</span>
                 </h4>
                 <p className="text-xs text-gray-400 mt-1">
-                  When enabled, public visitors see the &quot;System Under Maintenance&quot; page instead of the Live Event RSVP Portal.
+                  When enabled, public visitors see the &quot;System Under Maintenance&quot; screen.
                 </p>
               </div>
 
@@ -962,14 +1162,31 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
                 }`}
               >
                 {isMaintenanceMode ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                <span>{isMaintenanceMode ? 'Maintenance ENABLED' : 'Live Event RSVP OPEN'}</span>
+                <span>{isMaintenanceMode ? 'Maintenance ENABLED' : 'Maintenance DISABLED'}</span>
               </button>
+            </div>
+
+            {/* Admin Security Passcode Card */}
+            <div className="bg-[#0b0b14]/80 border border-white/10 rounded-2xl p-6 backdrop-blur-xl flex flex-col gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                <KeyRound size={15} /> Organizer Secret Admin Password
+              </span>
+              <p className="text-xs text-gray-400">
+                Set the secret passcode to unlock the Admin OS from the maintenance screen (default: &quot;admin&quot;).
+              </p>
+              <input
+                type="text"
+                value={adminPasscode}
+                onChange={(e) => setAdminPasscode(e.target.value)}
+                placeholder="Enter secret admin passcode..."
+                className="w-full max-w-sm bg-white/[0.04] border border-white/10 focus:border-amber-400 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white outline-none font-mono"
+              />
             </div>
 
             {/* Event Info Group */}
             <div className="bg-[#0b0b14]/70 border border-white/10 rounded-2xl p-6 backdrop-blur-xl flex flex-col gap-4">
               <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
-                <Calendar size={14} /> Event Metadata & Public Details
+                <Calendar size={14} /> Event Metadata & Details
               </span>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1008,7 +1225,7 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Event Description & Public Instructions</label>
+                <label className="text-xs text-gray-400 block mb-1">Event Description & Notes</label>
                 <textarea
                   value={eventDetails}
                   onChange={(e) => setEventDetails(e.target.value)}
