@@ -64,13 +64,14 @@ interface SubscriberItem {
 export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
   const DEFAULT_PROJECT_ID = '13975872-827c-4eea-81e2-0b9dc1ef5ba6';
 
-  // Admin Lock state (Scoped strictly to this admin browser session)
-  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
-    return (
-      sessionStorage.getItem('yashoo_es_admin_unlocked') === 'true' ||
-      localStorage.getItem('yashoo_es_admin_unlocked') === 'true'
-    );
-  });
+  // Admin Lock state (Strictly defaults to locked Maintenance Mode on every page load)
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+
+  // Clear any legacy stored admin unlock tokens on mount to guarantee default locked maintenance view
+  useEffect(() => {
+    sessionStorage.removeItem('yashoo_es_admin_unlocked');
+    localStorage.removeItem('yashoo_es_admin_unlocked');
+  }, []);
 
   // Maintenance input & status
   const [subscriberInput, setSubscriberInput] = useState('');
@@ -151,8 +152,6 @@ export const YashooOSApp: React.FC<YashooOSAppProps> = ({ onBack }) => {
     // Secret Admin Keyword Bypass
     const targetPass = (adminPasscode || 'admin').toLowerCase();
     if (val.toLowerCase() === targetPass || val.toLowerCase() === 'admin') {
-      sessionStorage.setItem('yashoo_es_admin_unlocked', 'true');
-      localStorage.setItem('yashoo_es_admin_unlocked', 'true');
       setIsUnlocked(true);
       setSubscriberInput('');
       return;
