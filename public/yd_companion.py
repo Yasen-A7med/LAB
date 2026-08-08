@@ -72,7 +72,7 @@ def format_views(v):
 
 class YDHandler(BaseHTTPRequestHandler):
 
-    def _cors_headers(self, origin):
+    def _cors_headers(self, origin=""):
         if origin in ALLOWED_ORIGINS:
             return origin
         # Allow any localhost origin for dev
@@ -81,17 +81,20 @@ class YDHandler(BaseHTTPRequestHandler):
         return ALLOWED_ORIGINS[0]
 
     def _send_json(self, status, data, origin=""):
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", self._cors_headers(origin))
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode())
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", self._cors_headers(origin))
+            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.end_headers()
+            self.wfile.write(json.dumps(data).encode())
+        except:
+            pass
 
     def do_OPTIONS(self):
         origin = self.headers.get("Origin", "")
-        self.send_response(204)
+        self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", self._cors_headers(origin))
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
@@ -106,6 +109,17 @@ class YDHandler(BaseHTTPRequestHandler):
         # Health check
         if path == "/ping":
             self._send_json(200, {"status": "ok", "engine": "yt-dlp"}, origin)
+            return
+
+        # Realtime Download Status Check
+        if path == "/status":
+            url = qs.get("url", [""])[0]
+            fmt = qs.get("format", ["mp4"])[0]
+            quality = qs.get("quality", ["720p"])[0]
+            import hashlib
+            key = hashlib.md5(f"{url}_{fmt}_{quality}".encode()).hexdigest()
+            status_data = DOWNLOAD_PROGRESS.get(key, {"status": "idle", "progress": 0})
+            self._send_json(200, status_data, origin)
             return
 
         # Video info extraction
@@ -325,6 +339,8 @@ class YDHandler(BaseHTTPRequestHandler):
                         filepath = cached_files[0]
                         print(f"  [Cache Hit] Serving: {os.path.basename(filepath)}")
 
+            DOWNLOAD_PROGRESS[cache_key] = {"status": "downloading", "progress": 15}
+
             if not filepath:
                 tmpdir = tempfile.mkdtemp(prefix="yd_")
                 if is_audio:
@@ -359,6 +375,7 @@ class YDHandler(BaseHTTPRequestHandler):
 
                 files = glob_mod.glob(os.path.join(tmpdir, "*"))
                 if not files:
+                    DOWNLOAD_PROGRESS[cache_key] = {"status": "failed", "error": "No file downloaded"}
                     self._send_json(500, {"error": "Download completed but no file found"}, origin)
                     shutil.rmtree(tmpdir, ignore_errors=True)
                     return
@@ -390,6 +407,7 @@ class YDHandler(BaseHTTPRequestHandler):
             content_type = "audio/mpeg" if is_audio else "video/mp4"
 
             print(f"  Serving: {filename} ({format_bytes(filesize)})")
+            DOWNLOAD_PROGRESS[cache_key] = {"status": "serving", "progress": 50, "totalBytes": filesize}
 
             self.send_response(200)
             self.send_header("Content-Type", content_type)
@@ -400,17 +418,29 @@ class YDHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
             try:
+                sent_bytes = 0
                 with open(filepath, "rb") as f:
                     while True:
                         chunk = f.read(65536)
                         if not chunk:
                             break
                         self.wfile.write(chunk)
+                        sent_bytes += len(chunk)
+                        pct = 50 + int((sent_bytes / filesize) * 50) if filesize else 50
+                        DOWNLOAD_PROGRESS[cache_key] = {
+                            "status": "serving",
+                            "progress": min(99, pct),
+                            "bytesSent": sent_bytes,
+                            "totalBytes": filesize
+                        }
                 print(f"  Done: {filename}")
+                DOWNLOAD_PROGRESS[cache_key] = {"status": "completed", "progress": 100, "bytesSent": filesize, "totalBytes": filesize}
             except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, OSError):
-                print(f"  [Client Disconnected] Download completed or stream closed by client for: {filename}")
+                print(f"  [Client Disconnected] Stream completed or closed by client for: {filename}")
+                DOWNLOAD_PROGRESS[cache_key] = {"status": "completed", "progress": 100}
 
         except Exception as exc:
+            DOWNLOAD_PROGRESS[cache_key] = {"status": "failed", "error": str(exc)}
             self._send_json(500, {"error": str(exc)}, origin)
             # Try cleanup
             try:

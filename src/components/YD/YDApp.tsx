@@ -137,9 +137,29 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
 
     setDownloadQueue(prev => [newTask, ...prev]);
 
-    setTimeout(() => {
-      setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
-    }, 5000);
+    // Poll companion /status to get true empirical verification before marking completed
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      if (attempts > 120) { // 3 minutes max polling
+        clearInterval(interval);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${COMPANION_URL}/status?url=${encodeURIComponent(url)}&format=${fmt}&quality=${encodeURIComponent(quality)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'completed') {
+            setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
+            clearInterval(interval);
+          } else if (data.status === 'failed') {
+            setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'failed', error: data.error || 'Download failed' } : t));
+            clearInterval(interval);
+          }
+        }
+      } catch {}
+    }, 1500);
 
     return taskId;
   };
