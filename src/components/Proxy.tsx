@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Globe, Shield, Zap, X, AlertTriangle, ArrowLeft, Settings, Check, Bug, Copy, CheckCircle } from 'lucide-react';
 
-interface UltraProxyProps {
+interface ProxyProps {
   onBack: () => void;
   transportType: 'wisp' | 'bare';
   serverUrl: string;
@@ -19,7 +19,7 @@ function encodeUVUrl(url: string): string {
   );
 }
 
-const UltraProxy: React.FC<UltraProxyProps> = ({ 
+const Proxy: React.FC<ProxyProps> = ({ 
   onBack,
   transportType,
   serverUrl,
@@ -31,7 +31,7 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
   const [error, setError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Settings states inside UltraProxy
+  // Settings states inside Proxy
   const [showSettings, setShowSettings] = useState(false);
   const [localType, setLocalType] = useState<'wisp' | 'bare'>(transportType);
   const [localUrl, setLocalUrl] = useState(serverUrl);
@@ -90,9 +90,9 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
       transport: {
         currentType: transportType,
         currentUrl: serverUrl,
-        lastWorking: localStorage.getItem('ultraproxy_last_working_transport') || 'not set',
-        savedType: localStorage.getItem('ultraproxy_transport_type') || 'not set',
-        savedUrl: localStorage.getItem('ultraproxy_server_url') || 'not set',
+        lastWorking: localStorage.getItem('proxy_last_working_transport') || 'not set',
+        savedType: localStorage.getItem('proxy_transport_type') || 'not set',
+        savedUrl: localStorage.getItem('proxy_server_url') || 'not set',
       },
       serviceWorker: {
         supported: 'serviceWorker' in navigator,
@@ -130,14 +130,14 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="bg-white/5 rounded-xl p-3">
               <div className="text-[10px] text-gray-500 uppercase font-bold">Active Transport</div>
-              <div className={`text-sm font-bold ${(localStorage.getItem('ultraproxy_last_working_transport') || transportType) === 'bare' ? 'text-purple-400' : 'text-cyan-400'}`}>
-                {(localStorage.getItem('ultraproxy_last_working_transport') || transportType).toUpperCase()}
+              <div className={`text-sm font-bold ${(localStorage.getItem('proxy_last_working_transport') || transportType) === 'bare' ? 'text-purple-400' : 'text-cyan-400'}`}>
+                {(localStorage.getItem('proxy_last_working_transport') || transportType).toUpperCase()}
               </div>
             </div>
             <div className="bg-white/5 rounded-xl p-3">
               <div className="text-[10px] text-gray-500 uppercase font-bold">Last Working</div>
               <div className="text-sm font-bold text-green-400">
-                {localStorage.getItem('ultraproxy_last_working_transport') || '—'}
+                {localStorage.getItem('proxy_last_working_transport') || '—'}
               </div>
             </div>
             <div className="bg-white/5 rounded-xl p-3 col-span-2">
@@ -534,7 +534,7 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
             <Globe size={80} className="text-[#00f2ff] relative hidden sm:block" />
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#00f2ff] via-white to-[#7000ff]">
-            ULTRA<span className="text-white">PROXY</span>
+            WEB<span className="text-white">PROXY</span>
           </h1>
           <p className="text-gray-400 max-w-md text-[13px] sm:text-sm md:text-lg leading-relaxed px-2 sm:px-0">
             Universal Web Emulator. Bypass ISP blocks for <span className="text-white font-semibold">YouTube</span>, <span className="text-white font-semibold">Facebook</span>, and beyond.
@@ -637,4 +637,4 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
   );
 };
 
-export default UltraProxy;
+export default Proxy;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
-import UltraProxy from './components/UltraProxy';
+import Proxy from './components/Proxy';
 import Thanawya from './components/Thanawya';
 import { DynamicQRStudio } from './components/DynamicQR/DynamicQRStudio';
 import { RedirectHandler } from './components/DynamicQR/RedirectHandler';
@@ -8,9 +8,9 @@ import YashooOSApp from './components/YashooOS/YashooOSApp';
 import YDApp from './components/YD/YDApp';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'ultraproxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es' | 'yd'>(() => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'proxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es' | 'yd'>(() => {
     const path = window.location.pathname;
-    if (path === '/proxy') return 'ultraproxy';
+    if (path === '/proxy') return 'proxy';
     if (path === '/thanawya') return 'thanawya';
     if (path === '/qr') return 'qr';
     if (path === '/yd') return 'yd';
@@ -21,10 +21,10 @@ const App: React.FC = () => {
 
   const [swRegistered, setSwRegistered] = useState(false);
   const [transportType, setTransportType] = useState<'wisp' | 'bare'>(() => {
-    return (localStorage.getItem('ultraproxy_transport_type') as 'wisp' | 'bare') || 'wisp';
+    return (localStorage.getItem('proxy_transport_type') as 'wisp' | 'bare') || 'wisp';
   });
   const [serverUrl, setServerUrl] = useState<string>(() => {
-    return localStorage.getItem('ultraproxy_server_url') || 'wss://nebulaproxy.io/wisp/';
+    return localStorage.getItem('proxy_server_url') || 'wss://nebulaproxy.io/wisp/';
   });
 
   useEffect(() => {
@@ -33,7 +33,7 @@ const App: React.FC = () => {
     const handlePopState = () => {
       const path = window.location.pathname;
       if (path === '/proxy') {
-        setCurrentView('ultraproxy');
+        setCurrentView('proxy');
       } else if (path === '/thanawya') {
         setCurrentView('thanawya');
       } else if (path === '/qr') {
@@ -72,11 +72,11 @@ const App: React.FC = () => {
         const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
         const connection = new BareMuxConnection('/baremux/worker.js');
         
-        const type = localStorage.getItem('ultraproxy_transport_type') || 'wisp';
-        const userUrl = localStorage.getItem('ultraproxy_server_url') || 'wss://nebulaproxy.io/wisp/';
+        const type = localStorage.getItem('proxy_transport_type') || 'wisp';
+        const userUrl = localStorage.getItem('proxy_server_url') || 'wss://nebulaproxy.io/wisp/';
 
         if (type === 'wisp') {
-          const lastWorkingTransport = localStorage.getItem('ultraproxy_last_working_transport');
+          const lastWorkingTransport = localStorage.getItem('proxy_last_working_transport');
           
           if (lastWorkingTransport === 'bare') {
             const bareUrl = `${window.location.origin}/api/bare/`;
@@ -125,7 +125,7 @@ const App: React.FC = () => {
               const ok = await testWisp(server);
               if (ok) {
                 await connection.setTransport('/epoxy/index.mjs', [{ wisp: server }]);
-                localStorage.setItem('ultraproxy_last_working_transport', 'wisp');
+                localStorage.setItem('proxy_last_working_transport', 'wisp');
                 foundWisp = true;
                 break;
               }
@@ -136,7 +136,7 @@ const App: React.FC = () => {
               await connection.setTransport('/bare/index.mjs', [bareUrl]);
               setTransportType('bare');
               setServerUrl(bareUrl);
-              localStorage.setItem('ultraproxy_last_working_transport', 'bare');
+              localStorage.setItem('proxy_last_working_transport', 'bare');
             }
           }
         } else {
@@ -160,8 +160,8 @@ const App: React.FC = () => {
       } else {
         await connection.setTransport('/bare/index.mjs', [url]);
       }
-      localStorage.setItem('ultraproxy_transport_type', type);
-      localStorage.setItem('ultraproxy_server_url', url);
+      localStorage.setItem('proxy_transport_type', type);
+      localStorage.setItem('proxy_server_url', url);
       setTransportType(type);
       setServerUrl(url);
     } catch (err) {
@@ -171,7 +171,7 @@ const App: React.FC = () => {
   };
 
   const handleLaunch = (id: string) => {
-    if (id === 'ultraproxy') {
+    if (id === 'proxy') {
       window.open('/proxy', '_blank');
     } else if (id === 'thanawya') {
       window.open('/thanawya', '_blank');
@@ -200,8 +200,8 @@ const App: React.FC = () => {
           swRegistered={swRegistered} 
         />
       )}
-      {currentView === 'ultraproxy' && (
-        <UltraProxy 
+      {currentView === 'proxy' && (
+        <Proxy 
           onBack={handleBack} 
           transportType={transportType}
           serverUrl={serverUrl}

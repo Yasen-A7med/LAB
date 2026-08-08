@@ -93,7 +93,7 @@ const projects: ProjectCardData[] = [
     badgeText: 'Smart QR'
   },
   {
-    id: 'ultraproxy',
+    id: 'proxy',
     title: 'Proxy',
     desc: 'High-speed web emulator with XOR obfuscation. Access web resources freely without CORS restrictions or ISP blocking.',
     icon: Globe,
