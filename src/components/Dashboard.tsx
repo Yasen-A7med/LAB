@@ -59,7 +59,7 @@ const projects: ProjectCardData[] = [
   {
     id: 'yd',
     title: 'YD',
-    desc: 'High-speed YouTube Video & MP3 Audio Downloader. Custom quality selection (1080p, 720p, 480p, MP3) with audio toggle.',
+    desc: 'High-speed YouTube Video & Playlist Downloader for PC / Desktop. Extract full playlists, select custom quality (1080p, 720p, 480p, MP3) and batch download.',
     icon: YoutubeIcon,
     tag: 'Media Tools',
     iconColor: 'text-red-500',

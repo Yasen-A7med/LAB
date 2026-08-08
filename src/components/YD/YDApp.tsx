@@ -626,14 +626,14 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         >
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold mb-3 shadow-lg shadow-red-500/10">
             <Sparkles size={14} className="animate-pulse" />
-            <span>Ultra Fast YouTube Video & MP3 Downloader</span>
+            <span>High-Speed YouTube Video & Playlist Downloader for PC</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight mb-3">
-            Download Any Video in <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-rose-400 to-amber-400">HD & MP3</span>
+            Download Videos & Playlists in <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-rose-400 to-amber-400">Ultra High Speed</span>
           </h1>
           <p className="text-xs sm:text-sm text-gray-400 font-medium">
-            Paste your YouTube link below to convert, select resolution, toggle audio, and download cleanly with maximum speed.
+            Built for PC / Desktop (Windows & Mac). Paste any YouTube video or playlist link below to extract entries, select resolution, and download at maximum speed.
           </p>
         </motion.div>
 
