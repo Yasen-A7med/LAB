@@ -310,7 +310,17 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(videoUrl)}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
         const response = await fetch(downloadUrl);
-        if (!response.ok) continue;
+        if (!response.ok) {
+          console.error(`Download failed with status ${response.status} for: ${entry.title}`);
+          continue;
+        }
+
+        // If the server accidentally returned JSON error with 200 OK
+        const respContentType = response.headers.get('content-type');
+        if (respContentType && respContentType.includes('application/json')) {
+          console.error(`Server returned JSON instead of media file for: ${entry.title}`);
+          continue;
+        }
 
         const reader = response.body?.getReader();
         const chunks: BlobPart[] = [];
@@ -749,7 +759,10 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
                 {/* Format Tabs for Playlist */}
                 <div className="flex p-1 rounded-xl bg-white/[0.04] border border-white/10 w-full sm:w-auto">
                   <button
-                    onClick={() => setActiveTab('mp4')}
+                    onClick={() => {
+                      setActiveTab('mp4');
+                      setSelectedQuality('1080p');
+                    }}
                     className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                       activeTab === 'mp4' 
                         ? 'bg-red-600 text-white shadow-md' 
@@ -759,7 +772,10 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
                     <Film size={14} /> MP4
                   </button>
                   <button
-                    onClick={() => setActiveTab('mp3')}
+                    onClick={() => {
+                      setActiveTab('mp3');
+                      setSelectedQuality('320kbps');
+                    }}
                     className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                       activeTab === 'mp3' 
                         ? 'bg-red-600 text-white shadow-md' 
@@ -768,6 +784,31 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
                   >
                     <Music size={14} /> MP3
                   </button>
+                </div>
+
+                {/* Quality Selector for Playlist */}
+                <div className="flex items-center gap-2 w-full sm:w-auto bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2">
+                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Quality:</label>
+                  <select 
+                    value={selectedQuality}
+                    onChange={(e) => setSelectedQuality(e.target.value)}
+                    className="bg-transparent text-xs text-white font-bold outline-none cursor-pointer"
+                  >
+                    {activeTab === 'mp4' ? (
+                      <>
+                        <option value="1080p" className="bg-[#0a0a14]">1080p HD</option>
+                        <option value="720p" className="bg-[#0a0a14]">720p</option>
+                        <option value="480p" className="bg-[#0a0a14]">480p</option>
+                        <option value="360p" className="bg-[#0a0a14]">360p</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="320kbps" className="bg-[#0a0a14]">320 kbps</option>
+                        <option value="192kbps" className="bg-[#0a0a14]">192 kbps</option>
+                        <option value="128kbps" className="bg-[#0a0a14]">128 kbps</option>
+                      </>
+                    )}
+                  </select>
                 </div>
                 
                 {/* Select All & Download Selected */}
