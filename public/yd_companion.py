@@ -131,12 +131,21 @@ class YDHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": "Not found"}, origin)
 
     def _handle_info(self, url, origin):
+        import re
+        
+        # If the URL contains a playlist ID, force it to be a playlist URL
+        # so yt-dlp doesn't just extract the single video if v= is also present.
+        list_match = re.search(r'[?&]list=([a-zA-Z0-9_-]+)', url)
+        if list_match:
+            url = f"https://www.youtube.com/playlist?list={list_match.group(1)}"
+            
         try:
             # First pass: flat extraction to quickly detect playlists
             ydl_flat = {
                 "quiet": True,
                 "no_warnings": True,
                 "extract_flat": "in_playlist",
+                "noplaylist": False,
             }
             with yt_dlp.YoutubeDL(ydl_flat) as ydl:
                 info = ydl.extract_info(url, download=False)
