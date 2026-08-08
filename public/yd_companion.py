@@ -371,16 +371,29 @@ class YDHandler(BaseHTTPRequestHandler):
                 filepath = target_cache_path
                 shutil.rmtree(tmpdir, ignore_errors=True)
 
+            import urllib.parse
+
             filename = os.path.basename(filepath)
             filesize = os.path.getsize(filepath)
-            safe_name = re.sub(r'[^\w\s\-.]', '_', filename)
+
+            # Create ASCII fallback name for HTTP header latin-1 encoding
+            ascii_name = re.sub(r'[^\x00-\x7F]+', '_', filename)
+            ascii_name = re.sub(r'[^\w\s\-.]', '_', ascii_name).strip()
+            if not ascii_name or ascii_name.startswith('.'):
+                ext = "mp3" if is_audio else "mp4"
+                ascii_name = f"media_file.{ext}"
+
+            # Create RFC 5987 UTF-8 encoded name for modern browsers (preserves full Arabic titles)
+            utf8_name = urllib.parse.quote(filename)
+            disposition_header = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{utf8_name}'
+
             content_type = "audio/mpeg" if is_audio else "video/mp4"
 
-            print(f"  Serving: {safe_name} ({format_bytes(filesize)})")
+            print(f"  Serving: {filename} ({format_bytes(filesize)})")
 
             self.send_response(200)
             self.send_header("Content-Type", content_type)
-            self.send_header("Content-Disposition", f'attachment; filename="{safe_name}"')
+            self.send_header("Content-Disposition", disposition_header)
             self.send_header("Content-Length", str(filesize))
             self.send_header("Access-Control-Allow-Origin", self._cors_headers(origin))
             self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
