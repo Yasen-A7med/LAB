@@ -129,8 +129,19 @@ class YDHandler(BaseHTTPRequestHandler):
             fmt = qs.get("format", ["mp4"])[0]
             quality = qs.get("quality", ["720p"])[0]
             import hashlib
+            import tempfile
+            import glob as glob_mod
+
             key = hashlib.md5(f"{url}_{fmt}_{quality}".encode()).hexdigest()
-            status_data = DOWNLOAD_PROGRESS.get(key, {"status": "idle", "progress": 0})
+            status_data = DOWNLOAD_PROGRESS.get(key)
+            if not status_data:
+                cache_dir = os.path.join(tempfile.gettempdir(), "yd_cache")
+                cache_entry_dir = os.path.join(cache_dir, key)
+                if os.path.exists(cache_entry_dir) and glob_mod.glob(os.path.join(cache_entry_dir, "*")):
+                    status_data = {"status": "completed", "progress": 100}
+                else:
+                    status_data = {"status": "idle", "progress": 0}
+
             self._send_json(200, status_data, origin)
             return
 

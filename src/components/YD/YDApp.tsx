@@ -157,8 +157,8 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
           } else if (data.status === 'failed') {
             setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'failed', error: data.error || 'Download failed' } : t));
             clearInterval(interval);
-          } else if (data.progress) {
-            setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, progress: data.progress } : t));
+          } else if (data.status === 'serving' || data.status === 'downloading') {
+            setDownloadQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'downloading', progress: data.progress || 15 } : t));
           }
         }
       } catch {}
