@@ -322,21 +322,9 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
           continue;
         }
 
-        const reader = response.body?.getReader();
-        const chunks: BlobPart[] = [];
-        let received = 0;
-
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            received += value.length;
-          }
-        }
-
+        const arrayBuffer = await response.arrayBuffer();
         const contentType = activeTab === 'mp3' ? 'audio/mpeg' : 'video/mp4';
-        const blob = new Blob(chunks, { type: contentType });
+        const blob = new Blob([arrayBuffer], { type: contentType });
         const blobUrl = URL.createObjectURL(blob);
 
         const cleanTitle = entry.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
@@ -411,9 +399,9 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
           }
         }
 
-        // Create blob and trigger download
+        const arrayBuffer = await response.arrayBuffer();
         const contentType = activeTab === 'mp3' ? 'audio/mpeg' : 'video/mp4';
-        const blob = new Blob(chunks, { type: contentType });
+        const blob = new Blob([arrayBuffer], { type: contentType });
         const blobUrl = URL.createObjectURL(blob);
 
         const cleanTitle = videoData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');

@@ -297,6 +297,8 @@ class YDHandler(BaseHTTPRequestHandler):
         import tempfile
         import shutil
         import glob as glob_mod
+        import hashlib
+        import time
 
         try:
             is_audio = fmt == "mp3"
@@ -306,52 +308,72 @@ class YDHandler(BaseHTTPRequestHandler):
             except:
                 pass
 
-            tmpdir = tempfile.mkdtemp(prefix="yd_")
+            # Setup cache directory
+            cache_dir = os.path.join(tempfile.gettempdir(), "yd_cache")
+            os.makedirs(cache_dir, exist_ok=True)
 
-            if is_audio:
-                format_spec = "bestaudio/best"
-                ydl_opts = {
-                    "quiet": True,
-                    "no_warnings": True,
-                    "format": format_spec,
-                    "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
-                    "postprocessors": [{
-                        "key": "FFmpegExtractAudio",
-                        "preferredcodec": "mp3",
-                        "preferredquality": "192",
-                    }],
-                }
-            else:
-                format_spec = (
-                    f"bestvideo[height<={desired_height}]+bestaudio/"
-                    f"best[height<={desired_height}]/bestvideo+bestaudio/best"
-                )
-                ydl_opts = {
-                    "quiet": True,
-                    "no_warnings": True,
-                    "format": format_spec,
-                    "merge_output_format": "mp4",
-                    "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
-                }
+            cache_key = hashlib.md5(f"{url}_{fmt}_{quality}".encode()).hexdigest()
+            cache_entry_dir = os.path.join(cache_dir, cache_key)
 
-            print(f"  Downloading: {url} [{quality} {fmt}]")
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+            filepath = None
+            if os.path.exists(cache_entry_dir):
+                cached_files = glob_mod.glob(os.path.join(cache_entry_dir, "*"))
+                if cached_files:
+                    # Check age (valid for 15 minutes = 900s)
+                    mtime = os.path.getmtime(cached_files[0])
+                    if time.time() - mtime < 900:
+                        filepath = cached_files[0]
+                        print(f"  [Cache Hit] Serving: {os.path.basename(filepath)}")
 
-            # Find the downloaded file
-            files = glob_mod.glob(os.path.join(tmpdir, "*"))
-            if not files:
-                self._send_json(500, {"error": "Download completed but no file found"}, origin)
+            if not filepath:
+                tmpdir = tempfile.mkdtemp(prefix="yd_")
+                if is_audio:
+                    format_spec = "bestaudio/best"
+                    ydl_opts = {
+                        "quiet": True,
+                        "no_warnings": True,
+                        "format": format_spec,
+                        "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
+                        "postprocessors": [{
+                            "key": "FFmpegExtractAudio",
+                            "preferredcodec": "mp3",
+                            "preferredquality": "192",
+                        }],
+                    }
+                else:
+                    format_spec = (
+                        f"bestvideo[height<={desired_height}]+bestaudio/"
+                        f"best[height<={desired_height}]/bestvideo+bestaudio/best"
+                    )
+                    ydl_opts = {
+                        "quiet": True,
+                        "no_warnings": True,
+                        "format": format_spec,
+                        "merge_output_format": "mp4",
+                        "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
+                    }
+
+                print(f"  Downloading: {url} [{quality} {fmt}]")
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+
+                files = glob_mod.glob(os.path.join(tmpdir, "*"))
+                if not files:
+                    self._send_json(500, {"error": "Download completed but no file found"}, origin)
+                    shutil.rmtree(tmpdir, ignore_errors=True)
+                    return
+
+                # Save to cache
+                os.makedirs(cache_entry_dir, exist_ok=True)
+                downloaded_file = files[0]
+                target_cache_path = os.path.join(cache_entry_dir, os.path.basename(downloaded_file))
+                shutil.copy2(downloaded_file, target_cache_path)
+                filepath = target_cache_path
                 shutil.rmtree(tmpdir, ignore_errors=True)
-                return
 
-            filepath = files[0]
             filename = os.path.basename(filepath)
             filesize = os.path.getsize(filepath)
-
-            # Sanitize filename for Content-Disposition
             safe_name = re.sub(r'[^\w\s\-.]', '_', filename)
-
             content_type = "audio/mpeg" if is_audio else "video/mp4"
 
             print(f"  Serving: {safe_name} ({format_bytes(filesize)})")
@@ -371,8 +393,6 @@ class YDHandler(BaseHTTPRequestHandler):
                         break
                     self.wfile.write(chunk)
 
-            # Cleanup temp dir
-            shutil.rmtree(tmpdir, ignore_errors=True)
             print(f"  Done: {safe_name}")
 
         except Exception as exc:
