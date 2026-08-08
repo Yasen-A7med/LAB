@@ -253,6 +253,26 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
     }
 
     try {
+      const parsedUrl = new URL(targetUrl);
+      if (parsedUrl.hostname === 'facebook.com' || parsedUrl.hostname === 'www.facebook.com') {
+        parsedUrl.hostname = 'm.facebook.com';
+        targetUrl = parsedUrl.toString();
+      }
+    } catch (err) {}
+
+    try {
+      const encodedUrl = encodeUVUrl(targetUrl);
+      setProxyUrl(`/uv/service/${encodedUrl}`);
+      setIsProxying(true);
+    } catch (err) {
+      setError('Failed to encode URL.');
+    }
+  };
+
+  const launchTarget = (targetUrl: string) => {
+    setError(null);
+    setUrl(targetUrl);
+    try {
       const encodedUrl = encodeUVUrl(targetUrl);
       setProxyUrl(`/uv/service/${encodedUrl}`);
       setIsProxying(true);
@@ -554,6 +574,34 @@ const UltraProxy: React.FC<UltraProxyProps> = ({
               {error}
             </div>
           )}
+
+          {/* Quick Shortcuts */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <button
+              onClick={() => launchTarget('https://m.facebook.com')}
+              className="px-3.5 py-1.5 rounded-full bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 text-blue-400 text-xs font-semibold flex items-center gap-1.5 transition-all"
+            >
+              <span>Facebook</span>
+            </button>
+            <button
+              onClick={() => launchTarget('https://www.youtube.com')}
+              className="px-3.5 py-1.5 rounded-full bg-red-600/10 hover:bg-red-600/20 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center gap-1.5 transition-all"
+            >
+              <span>YouTube</span>
+            </button>
+            <button
+              onClick={() => launchTarget('https://www.google.com')}
+              className="px-3.5 py-1.5 rounded-full bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 transition-all"
+            >
+              <span>Google</span>
+            </button>
+            <button
+              onClick={() => launchTarget('https://duckduckgo.com')}
+              className="px-3.5 py-1.5 rounded-full bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/30 text-amber-400 text-xs font-semibold flex items-center gap-1.5 transition-all"
+            >
+              <span>DuckDuckGo</span>
+            </button>
+          </div>
         </div>
 
         {/* Features Section */}

@@ -105,6 +105,15 @@ export default async function middleware(request) {
       fetchHeaders.delete('host');
       fetchHeaders.delete('accept-encoding');
 
+      // Facebook header sanitization for proxy requests
+      try {
+        const targetObj = new URL(targetUrl);
+        if (targetObj.hostname.includes('facebook.com')) {
+          fetchHeaders.set('origin', targetObj.origin);
+          fetchHeaders.set('referer', targetObj.origin + '/');
+        }
+      } catch (e) {}
+
       const body = (request.method !== 'GET' && request.method !== 'HEAD')
         ? await request.arrayBuffer()
         : undefined;
