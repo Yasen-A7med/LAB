@@ -399,14 +399,16 @@ class YDHandler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
             self.end_headers()
 
-            with open(filepath, "rb") as f:
-                while True:
-                    chunk = f.read(65536)
-                    if not chunk:
-                        break
-                    self.wfile.write(chunk)
-
-            print(f"  Done: {safe_name}")
+            try:
+                with open(filepath, "rb") as f:
+                    while True:
+                        chunk = f.read(65536)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                print(f"  Done: {filename}")
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, OSError):
+                print(f"  [Client Disconnected] Download completed or stream closed by client for: {filename}")
 
         except Exception as exc:
             self._send_json(500, {"error": str(exc)}, origin)

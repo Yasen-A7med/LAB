@@ -288,6 +288,19 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
     }
   };
 
+  // Helper to trigger native download via isolated hidden iframe (prevents Chrome navigation stream cancellation)
+  const triggerNativeDownload = (url: string) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 120000);
+  };
+
   // Batch download selected playlist videos
   const handleBatchDownload = async () => {
     if (!companionAvailable) {
@@ -309,12 +322,8 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         const videoUrl = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
         const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(videoUrl)}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
-        // Trigger direct native browser download without fetch() overhead or duplicate requests
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // Trigger native download via iframe to keep downloads isolated and active
+        triggerNativeDownload(downloadUrl);
 
         // Wait before triggering next download to allow Python server to process sequentially
         await new Promise(r => setTimeout(r, 4000));
@@ -347,11 +356,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
       try {
         const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        triggerNativeDownload(downloadUrl);
 
         setDownloadProgress(100);
         setIsDownloading(false);
