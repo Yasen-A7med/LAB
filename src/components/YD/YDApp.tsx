@@ -309,41 +309,15 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         const videoUrl = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
         const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(videoUrl)}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
-        const response = await fetch(downloadUrl);
-        if (!response.ok) {
-          console.error(`Download failed with status ${response.status} for: ${entry.title}`);
-          continue;
-        }
-
-        // If the server accidentally returned JSON error with 200 OK
-        const respContentType = response.headers.get('content-type');
-        if (respContentType && respContentType.includes('application/json')) {
-          console.error(`Server returned JSON instead of media file for: ${entry.title}`);
-          continue;
-        }
-
-        const arrayBuffer = await response.arrayBuffer();
-        const contentType = activeTab === 'mp3' ? 'audio/mpeg' : 'video/mp4';
-        const blob = new Blob([arrayBuffer], { type: contentType });
-        const blobUrl = URL.createObjectURL(blob);
-
-        const cleanTitle = entry.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
-        const filename = `${cleanTitle}.${activeTab === 'mp3' ? 'mp3' : 'mp4'}`;
-
+        // Trigger direct native browser download without fetch() overhead or duplicate requests
         const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
+        link.href = downloadUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        // Keep Blob URL alive for 60 seconds so browser download manager finishes saving file
-        setTimeout(() => {
-          URL.revokeObjectURL(blobUrl);
-        }, 60000);
-
-        // Delay between downloads so browser download manager handles them cleanly
-        await new Promise(r => setTimeout(r, 2500));
+        // Wait before triggering next download to allow Python server to process sequentially
+        await new Promise(r => setTimeout(r, 4000));
       } catch (err) {
         console.error(`Failed to download: ${entry.title}`, err);
       }
@@ -363,61 +337,21 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   const handleDownload = async () => {
     if (!videoData) return;
 
-    // If companion is available, use the /download endpoint (downloads merged file)
+    // If companion is available, use direct native download from the /download endpoint
     if (companionAvailable) {
       setIsDownloading(true);
-      setDownloadProgress(5);
+      setDownloadProgress(50);
       setDownloadSuccess(false);
       setErrorMsg(null);
 
       try {
         const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(urlInput.trim())}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
 
-        const response = await fetch(downloadUrl);
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({ error: 'Download failed' }));
-          throw new Error(errData.error || 'Download failed');
-        }
-
-        const contentLength = Number(response.headers.get('Content-Length') || 0);
-        const reader = response.body?.getReader();
-        const chunks: BlobPart[] = [];
-        let received = 0;
-
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            received += value.length;
-            if (contentLength > 0) {
-              setDownloadProgress(Math.min(95, Math.round((received / contentLength) * 95)));
-            } else {
-              setDownloadProgress(Math.min(90, 5 + Math.round(received / 100000)));
-            }
-          }
-        }
-
-        const arrayBuffer = await response.arrayBuffer();
-        const contentType = activeTab === 'mp3' ? 'audio/mpeg' : 'video/mp4';
-        const blob = new Blob([arrayBuffer], { type: contentType });
-        const blobUrl = URL.createObjectURL(blob);
-
-        const cleanTitle = videoData.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
-        const filename = `${cleanTitle}.${activeTab === 'mp3' ? 'mp3' : 'mp4'}`;
-
         const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
+        link.href = downloadUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
-        // Keep Blob URL alive for 60 seconds so browser download manager finishes saving file
-        setTimeout(() => {
-          URL.revokeObjectURL(blobUrl);
-        }, 60000);
 
         setDownloadProgress(100);
         setIsDownloading(false);
