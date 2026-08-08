@@ -17,7 +17,10 @@ import {
   Eye,
   User,
   Zap,
-  RefreshCw
+  RefreshCw,
+  ListVideo,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import AnimatedLiquidBackground from '../AnimatedLiquidBackground';
 
@@ -64,6 +67,22 @@ interface VideoFormatsData {
   audio: FormatItem[];
 }
 
+interface PlaylistEntry {
+  id: string;
+  title: string;
+  thumbnail: string;
+  duration: number;
+  durationFormatted: string;
+  author: string;
+  url: string;
+}
+
+interface PlaylistInfo {
+  id: string;
+  title: string;
+  author: string;
+  videoCount: number;
+}
 
 
 export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
@@ -87,6 +106,14 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
   const [companionAvailable, setCompanionAvailable] = useState<boolean | null>(null);
   const [showSetupGuide, setShowSetupGuide] = useState(false);
   const COMPANION_URL = 'http://localhost:8765';
+
+  // Playlist state
+  const [isPlaylist, setIsPlaylist] = useState(false);
+  const [playlistInfo, setPlaylistInfo] = useState<PlaylistInfo | null>(null);
+  const [playlistEntries, setPlaylistEntries] = useState<PlaylistEntry[]>([]);
+  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
+  const [batchDownloading, setBatchDownloading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, currentTitle: '' });
 
   // Check companion server on mount
   React.useEffect(() => {
@@ -131,7 +158,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
     if (!targetUrl.trim()) return;
 
     if (!isValidYouTubeUrl(targetUrl)) {
-      setErrorMsg('Please enter a valid YouTube video or Shorts link.');
+      setErrorMsg('Please enter a valid YouTube video, Shorts, or Playlist link.');
       return;
     }
 
@@ -140,6 +167,10 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
     setVideoData(null);
     setFormats(null);
     setDownloadSuccess(false);
+    setIsPlaylist(false);
+    setPlaylistInfo(null);
+    setPlaylistEntries([]);
+    setSelectedEntries(new Set());
 
     try {
       let data: any = null;
@@ -159,12 +190,27 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
         // Companion not running, fall through
       }
 
+      // If companion returned a playlist, handle it
+      if (data && data.success && data.isPlaylist) {
+        setIsPlaylist(true);
+        setPlaylistInfo(data.playlist);
+        setPlaylistEntries(data.entries || []);
+        const allIds = new Set<string>((data.entries || []).map((e: PlaylistEntry) => e.id));
+        setSelectedEntries(allIds);
+        setLoading(false);
+        return;
+      }
+
       // Strategy 2: oEmbed for metadata (always works, but no stream URLs)
       if (!data || !data.success) {
         const match = targetUrl.trim().match(/(?:v=|\/shorts\/|\/embed\/|youtu\.be\/|\/v\/|\/e\/)([\\w-]{11})/);
         const videoId = match ? match[1] : null;
 
         if (!videoId) {
+          // Could be a playlist URL without companion — inform user
+          if (targetUrl.includes('list=')) {
+            throw new Error('Playlist detected but the Companion engine is not running. Start the companion to download playlists.');
+          }
           throw new Error('Invalid YouTube video link. Please check the URL.');
         }
 
@@ -221,6 +267,87 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Toggle playlist entry selection
+  const toggleEntry = (id: string) => {
+    setSelectedEntries(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllEntries = () => {
+    if (selectedEntries.size === playlistEntries.length) {
+      setSelectedEntries(new Set());
+    } else {
+      setSelectedEntries(new Set(playlistEntries.map(e => e.id)));
+    }
+  };
+
+  // Batch download selected playlist videos
+  const handleBatchDownload = async () => {
+    if (!companionAvailable) {
+      setShowSetupGuide(true);
+      return;
+    }
+
+    const selected = playlistEntries.filter(e => selectedEntries.has(e.id));
+    if (selected.length === 0) return;
+
+    setBatchDownloading(true);
+    setBatchProgress({ current: 0, total: selected.length, currentTitle: '' });
+
+    for (let i = 0; i < selected.length; i++) {
+      const entry = selected[i];
+      setBatchProgress({ current: i + 1, total: selected.length, currentTitle: entry.title });
+
+      try {
+        const videoUrl = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
+        const downloadUrl = `${COMPANION_URL}/download?url=${encodeURIComponent(videoUrl)}&format=${activeTab}&quality=${encodeURIComponent(selectedQuality)}`;
+
+        const response = await fetch(downloadUrl);
+        if (!response.ok) continue;
+
+        const reader = response.body?.getReader();
+        const chunks: BlobPart[] = [];
+        let received = 0;
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            received += value.length;
+          }
+        }
+
+        const contentType = activeTab === 'mp3' ? 'audio/mpeg' : 'video/mp4';
+        const blob = new Blob(chunks, { type: contentType });
+        const blobUrl = URL.createObjectURL(blob);
+
+        const cleanTitle = entry.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
+        const filename = `${cleanTitle}.${activeTab === 'mp3' ? 'mp3' : 'mp4'}`;
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+
+        // Small delay between downloads so browser doesn't block them
+        await new Promise(r => setTimeout(r, 1000));
+      } catch (err) {
+        console.error(`Failed to download: ${entry.title}`, err);
+      }
+    }
+
+    setBatchDownloading(false);
+    setDownloadSuccess(true);
+    setTimeout(() => setDownloadSuccess(false), 5000);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -353,7 +480,7 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
                   <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-red-400 shrink-0 mt-0.5">1</div>
                   <div>
                     <p className="text-white text-sm font-semibold">Install Python & yt-dlp</p>
-                    <p className="text-gray-400 text-xs mt-0.5">Make sure Python is installed, then run:</p>
+                    <p className="text-gray-400 text-xs mt-0.5">Make sure <a href="https://www.python.org/downloads/" target="_blank" rel="noopener" className="text-red-400 underline">Python</a> is installed, then open Terminal/CMD and run:</p>
                     <code className="block mt-2 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-emerald-400 font-mono select-all">pip install yt-dlp</code>
                   </div>
                 </div>
@@ -361,21 +488,32 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
                 <div className="flex gap-3">
                   <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-red-400 shrink-0 mt-0.5">2</div>
                   <div>
-                    <p className="text-white text-sm font-semibold">Download & Run Companion</p>
-                    <p className="text-gray-400 text-xs mt-0.5">Download the companion script and run it:</p>
+                    <p className="text-white text-sm font-semibold">Download the Companion</p>
+                    <p className="text-gray-400 text-xs mt-0.5">Download this small script file to your computer:</p>
                     <a href="/yd_companion.py" download className="inline-flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs font-semibold transition-all">
                       <Download size={14} />
                       Download yd_companion.py
                     </a>
-                    <code className="block mt-2 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-emerald-400 font-mono select-all">python yd_companion.py</code>
                   </div>
                 </div>
 
                 <div className="flex gap-3">
                   <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-red-400 shrink-0 mt-0.5">3</div>
                   <div>
+                    <p className="text-white text-sm font-semibold">Run it</p>
+                    <p className="text-gray-400 text-xs mt-0.5">Just <span className="text-white font-medium">double-click</span> the downloaded file to open it. If your system asks for permissions, approve them to allow the app to run.</p>
+                    <div className="mt-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-amber-300 text-[11px]"><span className="font-semibold">Didn't open?</span> Open Terminal/CMD, navigate to the file location, and run manually:</p>
+                      <code className="block mt-1.5 bg-black/50 border border-white/10 rounded px-2 py-1.5 text-[11px] text-emerald-400 font-mono select-all">python yd_companion.py</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-red-400 shrink-0 mt-0.5">4</div>
+                  <div>
                     <p className="text-white text-sm font-semibold">Ready to Download</p>
-                    <p className="text-gray-400 text-xs mt-0.5">Once the companion is running, come back here and download any video. The badge in the bottom-right will show "Engine Connected".</p>
+                    <p className="text-gray-400 text-xs mt-0.5">Once the companion window appears, come back here. The badge in the bottom-right will show <span className="text-emerald-400 font-medium">"Engine Connected"</span> and you can download any video or playlist.</p>
                   </div>
                 </div>
               </div>
@@ -542,8 +680,147 @@ export const YDApp: React.FC<YDAppProps> = ({ onBack }) => {
           </div>
         )}
 
-        {/* Video Preview & Download Options Panel */}
-        {videoData && formats && (
+        {/* Playlist UI Panel */}
+        {isPlaylist && playlistInfo && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="w-full bg-[#0a0a14]/90 border border-white/[0.12] rounded-3xl p-5 sm:p-7 shadow-2xl backdrop-blur-2xl space-y-6"
+          >
+            {/* Playlist Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex-1 space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20">
+                  <ListVideo size={14} />
+                  <span>Playlist</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white leading-snug line-clamp-2">
+                  {playlistInfo.title}
+                </h2>
+                <div className="flex items-center gap-3 text-xs text-gray-400 font-semibold">
+                  <span className="flex items-center gap-1.5"><User size={14} className="text-indigo-400" /> {playlistInfo.author}</span>
+                  <span>•</span>
+                  <span>{playlistInfo.videoCount} videos</span>
+                </div>
+              </div>
+              
+              {/* Batch Actions */}
+              <div className="flex flex-col items-end gap-3 shrink-0 w-full sm:w-auto">
+                {/* Format Tabs for Playlist */}
+                <div className="flex p-1 rounded-xl bg-white/[0.04] border border-white/10 w-full sm:w-auto">
+                  <button
+                    onClick={() => setActiveTab('mp4')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                      activeTab === 'mp4' 
+                        ? 'bg-red-600 text-white shadow-md' 
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Film size={14} /> MP4
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('mp3')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                      activeTab === 'mp3' 
+                        ? 'bg-red-600 text-white shadow-md' 
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Music size={14} /> MP3
+                  </button>
+                </div>
+                
+                {/* Select All & Download Selected */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={toggleAllEntries}
+                    className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    {selectedEntries.size === playlistEntries.length ? <CheckSquare size={14} className="text-indigo-400"/> : <Square size={14} />}
+                    {selectedEntries.size === playlistEntries.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                  <button
+                    onClick={handleBatchDownload}
+                    disabled={selectedEntries.size === 0 || batchDownloading}
+                    className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    {batchDownloading ? (
+                      <><Loader2 size={14} className="animate-spin" /> Batching...</>
+                    ) : (
+                      <><Download size={14} /> Download ({selectedEntries.size})</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Batch Download Progress Bar */}
+            {batchDownloading && (
+              <div className="w-full bg-black/40 rounded-xl p-4 border border-white/5">
+                <div className="flex justify-between items-end mb-2">
+                  <div className="text-xs text-indigo-400 font-bold flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Downloading {batchProgress.current} of {batchProgress.total}...
+                  </div>
+                  <div className="text-[10px] text-gray-500 max-w-[200px] truncate">{batchProgress.currentTitle}</div>
+                </div>
+                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+                    style={{ width: `${(batchProgress.current / Math.max(1, batchProgress.total)) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="border-t border-white/[0.08]" />
+
+            {/* Playlist Entries Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {playlistEntries.map((entry, idx) => {
+                const isSelected = selectedEntries.has(entry.id);
+                return (
+                  <div 
+                    key={entry.id} 
+                    onClick={() => !batchDownloading && toggleEntry(entry.id)}
+                    className={`flex gap-3 p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                      isSelected 
+                        ? 'bg-indigo-500/10 border-indigo-500/30 ring-1 ring-indigo-500/30' 
+                        : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+                    } ${batchDownloading ? 'opacity-75 pointer-events-none' : ''}`}
+                  >
+                    <div className="relative w-24 h-16 rounded-xl overflow-hidden shrink-0 bg-black/50 border border-white/10">
+                      <img src={entry.thumbnail} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[9px] text-white font-mono font-bold">
+                        {entry.durationFormatted}
+                      </div>
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-indigo-500/20 flex items-center justify-center backdrop-blur-[1px]">
+                          <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-lg">
+                            <Check size={14} strokeWidth={3} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <h3 className={`text-xs font-bold line-clamp-2 leading-tight ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                        {idx + 1}. {entry.title}
+                      </h3>
+                      <div className="text-[10px] text-gray-500 mt-1 font-semibold truncate">
+                        {entry.author}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Single Video Preview & Download Options Panel */}
+        {!isPlaylist && videoData && formats && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

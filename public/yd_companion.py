@@ -132,11 +132,65 @@ class YDHandler(BaseHTTPRequestHandler):
 
     def _handle_info(self, url, origin):
         try:
-            ydl_opts = {
+            # First pass: flat extraction to quickly detect playlists
+            ydl_flat = {
+                "quiet": True,
+                "no_warnings": True,
+                "extract_flat": "in_playlist",
+            }
+            with yt_dlp.YoutubeDL(ydl_flat) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+            is_playlist = info.get("_type") == "playlist" or (
+                "entries" in info and isinstance(info.get("entries"), list) and len(info.get("entries", [])) > 1
+            )
+
+            if is_playlist:
+                entries_raw = info.get("entries") or []
+                entries = []
+                for entry in entries_raw:
+                    if not entry:
+                        continue
+                    vid_id = entry.get("id")
+                    if not vid_id:
+                        continue
+                    
+                    thumbnail = entry.get("thumbnail")
+                    if not thumbnail:
+                        # Fallback for youtube
+                        thumbnail = f"https://i.ytimg.com/vi/{vid_id}/hqdefault.jpg"
+
+                    duration = entry.get("duration") or 0
+                    entries.append({
+                        "id": vid_id,
+                        "title": entry.get("title", "Unknown Title"),
+                        "thumbnail": thumbnail,
+                        "duration": duration,
+                        "durationFormatted": format_duration(duration),
+                        "author": entry.get("uploader") or entry.get("channel") or "YouTube",
+                        "url": entry.get("url") or f"https://www.youtube.com/watch?v={vid_id}"
+                    })
+
+                payload = {
+                    "success": True,
+                    "isPlaylist": True,
+                    "playlist": {
+                        "id": info.get("id", ""),
+                        "title": info.get("title", "Playlist"),
+                        "author": info.get("uploader") or info.get("channel") or "Unknown",
+                        "videoCount": len(entries)
+                    },
+                    "entries": entries
+                }
+                self._send_json(200, payload, origin)
+                return
+
+            # Single video: re-extract without flat to get full format data with URLs
+            ydl_full = {
                 "quiet": True,
                 "no_warnings": True,
             }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(ydl_full) as ydl:
                 info = ydl.extract_info(url, download=False)
 
             formats_raw = info.get("formats", [])
@@ -207,6 +261,7 @@ class YDHandler(BaseHTTPRequestHandler):
             duration = info.get("duration") or 0
             payload = {
                 "success": True,
+                "isPlaylist": False,
                 "video": {
                     "id": info.get("id", ""),
                     "title": info.get("title", "YouTube Video"),
@@ -336,8 +391,8 @@ def check_ffmpeg():
 def main():
     print("""
   __   ______
-  \\ \\ / /  _ \\
-   \\ V /| | | |
+  \ \ / /  _ \\
+   \ V /| | | |
     | | | |_| |
     |_| |____/  Companion Server
     """)
