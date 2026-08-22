@@ -1,11 +1,18 @@
 {
+  "redirects": [
+    {
+      "source": "/(.*)\\.zip",
+      "destination": "/",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/uv/service/(.*)",
       "destination": "/index.html"
     },
     {
-      "source": "/((?!api/|uv/|epoxy/|baremux/|bare/|assets/|thanawya/)(?!.*(?:\\.zip|\\.json|\\.txt|\\.png|\\.jpg|\\.jpeg|\\.webp|\\.opus|\\.mp3|\\.svg|\\.ico|\\.webmanifest)$).*)",
+      "source": "/((?!api/|uv/|epoxy/|baremux/|bare/|assets/|thanawya/).*)",
       "destination": "/index.html"
     }
   ]
