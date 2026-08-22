@@ -13,7 +13,11 @@ import {
   X, 
   Info,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  ArrowUpToLine,
+  ArrowDownToLine,
+  ChevronsUp,
+  ChevronsDown
 } from 'lucide-react';
 import type { ChatSession, ChatMessage, MediaAttachment } from './types';
 import { processWhatsAppFile, revokeMediaUrls } from './zipHandler';
@@ -40,6 +44,10 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0);
 
+  // Scroll positions
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+
   // Sidebar & Modals
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeMedia, setActiveMedia] = useState<MediaAttachment | null>(null);
@@ -51,6 +59,27 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Scroll helpers
+  const scrollToTop = () => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
+  const handleScroll = () => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    setIsScrolledDown(el.scrollTop > 300);
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setIsScrolledUp(distanceFromBottom > 300);
+  };
 
   // Cleanup Blob URLs on unmount
   useEffect(() => {
@@ -259,6 +288,30 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
         <div className="flex items-center gap-1 sm:gap-2">
           {session && (
             <>
+              {/* Jump to Start of Chat */}
+              <button
+                type="button"
+                onClick={scrollToTop}
+                className={`p-2.5 rounded-full transition-colors ${
+                  isDark ? 'hover:bg-white/10 text-gray-300 hover:text-white' : 'hover:bg-black/10 text-gray-600 hover:text-black'
+                }`}
+                title="Jump to Start of Chat"
+              >
+                <ChevronsUp size={18} />
+              </button>
+
+              {/* Jump to Latest Message */}
+              <button
+                type="button"
+                onClick={scrollToBottom}
+                className={`p-2.5 rounded-full transition-colors ${
+                  isDark ? 'hover:bg-white/10 text-gray-300 hover:text-white' : 'hover:bg-black/10 text-gray-600 hover:text-black'
+                }`}
+                title="Jump to Latest Message"
+              >
+                <ChevronsDown size={18} />
+              </button>
+
               {/* Search Toggle */}
               <button
                 type="button"
@@ -564,6 +617,7 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
             {/* Scrollable Message List */}
             <div 
               ref={chatScrollRef}
+              onScroll={handleScroll}
               className="flex-1 overflow-y-auto px-4 sm:px-12 md:px-20 py-6 space-y-4 relative z-10"
             >
               {groupedMessages.map((group) => (
@@ -613,6 +667,49 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
                   })}
                 </div>
               ))}
+            </div>
+
+            {/* Floating Navigation Quick Action Buttons */}
+            <div className="absolute bottom-14 right-4 sm:right-8 z-30 flex flex-col gap-2 pointer-events-auto">
+              <AnimatePresence>
+                {isScrolledDown && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                    type="button"
+                    onClick={scrollToTop}
+                    className={`px-3.5 py-2.5 rounded-full shadow-2xl flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 border backdrop-blur-md ${
+                      isDark
+                        ? 'bg-[#202c33]/90 hover:bg-[#00a884] text-white border-white/10 hover:border-[#00a884]'
+                        : 'bg-white/90 hover:bg-[#008069] text-gray-800 hover:text-white border-gray-200 shadow-xl'
+                    }`}
+                    title="Jump to start of chat"
+                  >
+                    <ArrowUpToLine size={16} />
+                    <span className="text-xs font-bold">Top of Chat</span>
+                  </motion.button>
+                )}
+
+                {isScrolledUp && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                    type="button"
+                    onClick={scrollToBottom}
+                    className={`px-3.5 py-2.5 rounded-full shadow-2xl flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 border backdrop-blur-md ${
+                      isDark
+                        ? 'bg-[#202c33]/90 hover:bg-[#00a884] text-white border-white/10 hover:border-[#00a884]'
+                        : 'bg-white/90 hover:bg-[#008069] text-gray-800 hover:text-white border-gray-200 shadow-xl'
+                    }`}
+                    title="Jump to latest message"
+                  >
+                    <ArrowDownToLine size={16} />
+                    <span className="text-xs font-bold">Latest Message</span>
+                  </motion.button>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Bottom Read-Only Bar */}
