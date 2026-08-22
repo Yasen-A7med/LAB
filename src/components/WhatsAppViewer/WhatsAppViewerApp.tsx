@@ -16,7 +16,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import type { ChatSession, ChatMessage, MediaAttachment } from './types';
-import { processWhatsAppFile, loadSampleChat, revokeMediaUrls } from './zipHandler';
+import { processWhatsAppFile, revokeMediaUrls } from './zipHandler';
 import { ChatBubble } from './ChatBubble';
 import { ChatInfoSidebar } from './ChatInfoSidebar';
 import { MediaModal } from './MediaModal';
@@ -101,31 +101,6 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
     } catch (err: any) {
       console.error('Failed to parse WhatsApp file:', err);
       setErrorMsg(err.message || 'Failed to process WhatsApp export file.');
-      setIsLoading(false);
-    }
-  };
-
-  // Load Built-in Sample
-  const handleLoadSample = async () => {
-    setIsLoading(true);
-    setErrorMsg(null);
-    setLoadingStatus({ percent: 0, statusText: 'Loading sample chat...' });
-
-    try {
-      if (session) {
-        revokeMediaUrls(session.mediaMap);
-      }
-      const sampleSession = await loadSampleChat((p) => setLoadingStatus(p));
-      setSession(sampleSession);
-      setIsLoading(false);
-      setTimeout(() => {
-        if (chatScrollRef.current) {
-          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-        }
-      }, 100);
-    } catch (err: any) {
-      console.error('Failed to load sample chat:', err);
-      setErrorMsg(err.message || 'Failed to load sample WhatsApp chat.');
       setIsLoading(false);
     }
   };
@@ -509,30 +484,15 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
               )}
 
               {/* Primary Action Buttons */}
-              <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3.5">
-                
-                {/* 1-Click Sample Chat Button */}
-                <button
-                  type="button"
-                  onClick={handleLoadSample}
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-[#00a884] hover:bg-[#008f6f] text-white font-bold text-sm shadow-xl shadow-[#00a884]/30 hover:scale-102 active:scale-98 transition-all flex items-center justify-center gap-2.5"
-                >
-                  <Sparkles size={18} />
-                  <span>Try Sample Chat (Yaseen Shehab)</span>
-                </button>
-
+              <div className="w-full flex items-center justify-center">
                 {/* Upload Custom File */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl border font-bold text-sm hover:scale-102 active:scale-98 transition-all flex items-center justify-center gap-2.5 ${
-                    isDark 
-                      ? 'bg-white/[0.05] border-white/10 hover:bg-white/10 text-white' 
-                      : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-800 shadow-sm'
-                  }`}
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#00a884] hover:bg-[#008f6f] text-white font-bold text-sm shadow-xl shadow-[#00a884]/30 hover:scale-102 active:scale-98 transition-all flex items-center justify-center gap-2.5"
                 >
-                  <UploadCloud size={18} />
-                  <span>Upload .ZIP / .TXT File</span>
+                  <UploadCloud size={20} />
+                  <span>Choose WhatsApp .ZIP or .TXT File</span>
                 </button>
               </div>
 

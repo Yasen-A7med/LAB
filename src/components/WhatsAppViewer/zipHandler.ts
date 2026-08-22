@@ -150,34 +150,3 @@ export async function processWhatsAppFile(
 
   return session;
 }
-
-/**
- * Load the bundled sample chat file (/WhatsApp Chat with Yaseen Shehab.zip)
- */
-export async function loadSampleChat(onProgress?: ProgressCallback): Promise<ChatSession> {
-  if (onProgress) onProgress({ percent: 10, statusText: 'Fetching sample chat archive...' });
-  const urlsToTry = [
-    '/whatsapp-sample.zip',
-    '/WhatsApp%20Chat%20with%20Yaseen%20Shehab.zip',
-    '/WhatsApp Chat with Yaseen Shehab.zip',
-  ];
-  
-  let lastError: Error | null = null;
-  for (const url of urlsToTry) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        const contentType = response.headers.get('content-type') || '';
-        // If it returned HTML (due to fallback rewrite), skip to next
-        if (contentType.includes('text/html')) continue;
-
-        const blob = await response.blob();
-        return await processWhatsAppFile(blob, 'WhatsApp Chat with Yaseen Shehab.zip', onProgress);
-      }
-    } catch (err: any) {
-      lastError = err;
-    }
-  }
-
-  throw lastError || new Error('Failed to load sample chat archive.');
-}

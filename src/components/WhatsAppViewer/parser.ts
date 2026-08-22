@@ -313,7 +313,7 @@ export function parseWhatsAppChat(
   if (youParticipant) {
     myPerspective = youParticipant.name;
   } else if (participantsList.length >= 2) {
-    // If chat title or filename contains participant name (e.g. "WhatsApp Chat with Yaseen Shehab.txt")
+    // If chat title or filename contains participant name (e.g. "WhatsApp Chat with Contact.txt")
     // Then the other person is likely the exporter ("me")
     const cleanFileName = fileName.toLowerCase();
     const otherParticipant = participantsList.find(p => !cleanFileName.includes(p.name.toLowerCase()));
