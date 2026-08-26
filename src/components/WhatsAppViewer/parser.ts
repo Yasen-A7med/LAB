@@ -16,56 +16,77 @@ const PARTICIPANT_COLORS = [
 ];
 
 /**
- * Clean hidden Unicode control characters (such as \u200E, \u200F, \u202F, \u200B)
+ * Convert Eastern Arabic-Indic numerals (٠-٩ and ۰-۹) to standard Western ASCII digits (0-9)
+ */
+export function normalizeDigits(str: string): string {
+  if (!str) return '';
+  const arabicDigits = '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹';
+  const englishDigits = '01234567890123456789';
+  let res = '';
+  for (let i = 0; i < str.length; i++) {
+    const idx = arabicDigits.indexOf(str[i]);
+    res += idx !== -1 ? englishDigits[idx] : str[i];
+  }
+  return res;
+}
+
+/**
+ * Clean hidden Unicode control characters, directional marks, and normalize punctuation
  */
 export function cleanUnicode(str: string): string {
   if (!str) return '';
-  return str
-    .replace(/[\u200E\u200F\u200B\uFEFF]/g, '')
-    .replace(/\u202F/g, ' ')
+  const noControlChars = str
+    .replace(/[\u200E\u200F\u200B\u200C\u200D\u202A\u202B\u202C\u202D\u202E\u202F\u2060\u2066\u2067\u2068\u2069\uFEFF]/g, '')
+    .replace(/[\u060C]/g, ',') // Arabic comma '،'
+    .replace(/\u00A0/g, ' ')   // Non-breaking space
     .trim();
+  
+  return normalizeDigits(noControlChars);
 }
 
 /**
  * Determine media type from file extension or file name
  */
 export function getMediaTypeFromFilename(filename: string): MediaType {
-  const cleanName = filename.toLowerCase().trim();
+  const cleanName = cleanUnicode(filename).toLowerCase().trim();
   const ext = cleanName.split('.').pop() || '';
 
   if (['webp'].includes(ext) || cleanName.startsWith('stk-')) {
     return 'sticker';
   }
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'heic', 'svg'].includes(ext)) {
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'heic', 'svg', 'webp'].includes(ext) || cleanName.startsWith('img-')) {
     return 'image';
   }
-  if (['opus', 'mp3', 'ogg', 'wav', 'm4a', 'aac', 'flac'].includes(ext) || cleanName.startsWith('ptt-') || cleanName.startsWith('aud-')) {
+  if (['opus', 'mp3', 'ogg', 'wav', 'm4a', 'aac', 'flac', 'amr'].includes(ext) || cleanName.startsWith('ptt-') || cleanName.startsWith('aud-')) {
     return 'audio';
   }
   if (['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp'].includes(ext) || cleanName.startsWith('vid-')) {
     return 'video';
   }
-  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip', 'rar', 'csv'].includes(ext)) {
+  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip', 'rar', 'csv', 'apk'].includes(ext)) {
     return 'document';
   }
   return 'document';
 }
 
 /**
- * Try to parse datetime string from WhatsApp headers into a JS Date object
+ * Robust Multi-Locale Date & Time Parser
  */
 export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey: string; timeStr: string } {
   const cleaned = cleanUnicode(dateStr);
   let parsedDate: Date | null = null;
 
-  // Normalise Arabic AM/PM markers if present
+  // Normalise Arabic AM/PM markers and lowercase variations
   const normalised = cleaned
-    .replace(/(\d+)\s*ص/g, '$1 AM')
-    .replace(/(\d+)\s*م/g, '$1 PM');
+    .replace(/ص/gi, 'AM')
+    .replace(/م/gi, 'PM')
+    .replace(/a\.m\./gi, 'AM')
+    .replace(/p\.m\./gi, 'PM')
+    .replace(/\s*à\s*/gi, ', ')
+    .trim();
 
-  // Common pattern: 8/17/26, 10:12 PM or 17/08/2026, 22:12 or 17/08/26 10:12:30
-  // Match components: [Month/Day/Year or Day/Month/Year] and [Time]
-  const match = normalised.match(/^(\d{1,4})[./\-](\d{1,2})[./\-](\d{1,4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/);
+  // Pattern matching: [P1/P2/P3] [Time Hours:Mins(:Secs)?] [AM/PM]?
+  const match = normalised.match(/^(\d{1,4})[./\-](\d{1,2})[./\-](\d{1,4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
   
   if (match) {
     let p1 = parseInt(match[1], 10);
@@ -76,10 +97,9 @@ export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey
     const seconds = match[6] ? parseInt(match[6], 10) : 0;
     const ampm = match[7] ? match[7].toUpperCase() : null;
 
-    // Handle 2-digit year vs 4-digit year
     let year = p3;
-    let month = p1;
-    let day = p2;
+    let month = p2;
+    let day = p1;
 
     if (p1 > 1000) {
       // YYYY-MM-DD
@@ -87,13 +107,14 @@ export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey
       month = p2;
       day = p3;
     } else if (p3 < 100) {
+      // 2-digit year (e.g. 25, 26)
       year = 2000 + p3;
     }
 
-    // Heuristic: if p1 > 12 and p2 <= 12, then p1 is day and p2 is month (DD/MM/YY)
-    if (p1 > 12 && p2 <= 12) {
-      day = p1;
-      month = p2;
+    // Heuristic: if p1 <= 12 and p2 > 12 -> MM/DD/YYYY format
+    if (p1 <= 12 && p2 > 12) {
+      month = p1;
+      day = p2;
     }
 
     if (ampm === 'PM' && hours < 12) hours += 12;
@@ -101,14 +122,17 @@ export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey
 
     try {
       parsedDate = new Date(year, month - 1, day, hours, minutes, seconds);
+      if (isNaN(parsedDate.getTime())) {
+        parsedDate = null;
+      }
     } catch {
       parsedDate = null;
     }
   }
 
-  // Fallback to Date.parse
+  // Fallback to standard JS Date.parse if regex didn't resolve
   if (!parsedDate || isNaN(parsedDate.getTime())) {
-    const fallback = new Date(cleaned);
+    const fallback = new Date(normalised);
     if (!isNaN(fallback.getTime())) {
       parsedDate = fallback;
     }
@@ -118,58 +142,60 @@ export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey
     ? `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
     : 'Unknown Date';
 
-  // Extract time portion for display
+  // Format clean display time
   let timeStr = '';
-  const timeMatch = cleaned.match(/(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)$/);
-  if (timeMatch) {
-    timeStr = timeMatch[1].trim();
-  } else if (parsedDate && !isNaN(parsedDate.getTime())) {
+  if (parsedDate && !isNaN(parsedDate.getTime())) {
     timeStr = parsedDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
   } else {
-    timeStr = cleaned;
+    const timeMatch = cleaned.match(/(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)$/i);
+    timeStr = timeMatch ? timeMatch[1].trim() : cleaned;
   }
 
   return { date: parsedDate, dateKey, timeStr };
 }
 
 /**
- * Detect and extract media attachment information from message content
+ * Detect and extract media attachment information from message content across languages
  */
 export function extractMediaAttachment(content: string, mediaMap: Record<string, MediaAttachment>): {
   cleanContent: string;
   attachment?: MediaAttachment;
 } {
-  const trimmed = content.trim();
+  const trimmed = cleanUnicode(content);
 
-  // Patterns:
-  // 1. "STK-20260717-WA0007.webp (file attached)"
-  // 2. "<attached: STK-20260717-WA0007.webp>"
-  // 3. "‎<attached: PTT-20260821-WA0210.opus>"
-  // 4. "‎image omitted" / "video omitted" / "audio omitted" / "sticker omitted"
+  // Multi-lingual attachment regexes:
+  // English: (file attached)
+  // Arabic: (الملف مرفق), (تم إرفاق ملف)
+  // French: (fichier joint)
+  // Spanish: (archivo adjunto)
+  // German: (Datei angehängt)
+  // Portuguese: (arquivo anexado)
+  // Italian: (allegato)
+  const fileAttachedMatch = trimmed.match(/^([\w\- .]+?\.[a-zA-Z0-9]{2,5})\s*\((?:file attached|الملف مرفق|تم إرفاق ملف|fichier joint|archivo adjunto|Datei angehängt|arquivo anexado|allegato)\)(.*)$/i);
   
-  const fileAttachedMatch = trimmed.match(/^([\w\- .]+?\.[a-zA-Z0-9]{2,5})\s*\(file attached\)(.*)$/i);
   if (fileAttachedMatch) {
-    const filename = fileAttachedMatch[1].trim();
+    const filename = cleanUnicode(fileAttachedMatch[1].trim());
     const remainingText = fileAttachedMatch[2].trim();
-    const existing = mediaMap[filename] || {
+    const existing = mediaMap[filename] || mediaMap[fileAttachedMatch[1].trim()] || {
       fileName: filename,
       mediaType: getMediaTypeFromFilename(filename),
     };
     return { cleanContent: remainingText, attachment: existing };
   }
 
-  const attachedTagMatch = trimmed.match(/^<attached:\s*([\w\- .]+?\.[a-zA-Z0-9]{2,5})>(.*)$/i);
+  // Tag format: <attached: filename.jpg> or <مرفق: filename.jpg>
+  const attachedTagMatch = trimmed.match(/^<[\w\u0600-\u06FF]+:\s*([\w\- .]+?\.[a-zA-Z0-9]{2,5})>(.*)$/i);
   if (attachedTagMatch) {
-    const filename = attachedTagMatch[1].trim();
+    const filename = cleanUnicode(attachedTagMatch[1].trim());
     const remainingText = attachedTagMatch[2].trim();
-    const existing = mediaMap[filename] || {
+    const existing = mediaMap[filename] || mediaMap[attachedTagMatch[1].trim()] || {
       fileName: filename,
       mediaType: getMediaTypeFromFilename(filename),
     };
     return { cleanContent: remainingText, attachment: existing };
   }
 
-  // Check if entire content is just a filename that exists in mediaMap
+  // Direct filename match in mediaMap
   if (mediaMap[trimmed]) {
     return { cleanContent: '', attachment: mediaMap[trimmed] };
   }
@@ -178,23 +204,33 @@ export function extractMediaAttachment(content: string, mediaMap: Record<string,
 }
 
 /**
- * System message signatures
+ * Multilingual System Message Signatures
  */
 const SYSTEM_PATTERNS = [
   /Messages and calls are end-to-end encrypted/i,
+  /الرسائل والمكالمات مشفرة تمامًا/i,
   /changed the subject to/i,
   /changed the group/i,
   /created group/i,
+  /أنشأ المجموعة/i,
   /added you/i,
   /added/i,
+  /تمت إضافة/i,
+  /أصبح .* ضمن جهات الاتصال/i,
   /left/i,
+  /غادر/i,
   /removed/i,
+  /تمت إزالة/i,
   /security code changed/i,
+  /تم تغيير رمز الأمان/i,
   /Your security code with/i,
   /This chat is with a business/i,
   /missed group voice call/i,
   /missed voice call/i,
   /missed video call/i,
+  /مكالمة صوتية فائتة/i,
+  /مكالمة فيديو فائتة/i,
+  /تم تغيير وصف المجموعة/i,
 ];
 
 export function isSystemMessage(content: string, hasSender: boolean): boolean {
@@ -206,7 +242,7 @@ export function isSystemMessage(content: string, hasSender: boolean): boolean {
 }
 
 /**
- * Main parser: parse raw WhatsApp chat text into structured ChatSession
+ * Main parser: parses raw WhatsApp chat text into a structured ChatSession
  */
 export function parseWhatsAppChat(
   rawText: string,
@@ -218,11 +254,11 @@ export function parseWhatsAppChat(
   const senderCounts: Record<string, { count: number; media: number }> = {};
 
   // Standard Header Regexes:
-  // 1. Android: "8/17/26, 10:12 PM - Sender: Message" or "8/17/26, 10:12 PM - System Notification"
-  const androidRegex = /^(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\s*-\s*(?:([^:]+?):\s*)?(.*)$/;
+  // 1. Android: "8/17/26, 10:12 PM - Sender: Message" or "١٦/١١/٢٠٢٥، ٧:٣٩ ص - Sender: Message"
+  const androidRegex = /^(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\s*-\s*(?:([^:]+?):\s*)?(.*)$/i;
 
-  // 2. iOS: "[17/08/2026, 22:12:30] Sender: Message" or "[8/17/26, 10:12 PM] System message"
-  const iosRegex = /^\[(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\]\s*(?:([^:]+?):\s*)?(.*)$/;
+  // 2. iOS: "[17/08/2026, 22:12:30] Sender: Message" or "[١٦/١١/٢٠٢٥، ٧:٣٩:٠٠ ص] Sender: Message"
+  const iosRegex = /^\[(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\]\s*(?:([^:]+?):\s*)?(.*)$/i;
 
   let currentMessage: ChatMessage | null = null;
   let totalMediaCount = 0;
@@ -254,7 +290,7 @@ export function parseWhatsAppChat(
       const isSystem = !rawSender || isSystemMessage(rawContent, !!rawSender);
 
       const sender = isSystem ? 'System' : (rawSender || 'Unknown');
-      const isDeleted = /This message was deleted|You deleted this message|تم حذف هذه الرسالة/i.test(rawContent);
+      const isDeleted = /This message was deleted|You deleted this message|تم حذف هذه الرسالة|حذفت هذه الرسالة/i.test(rawContent);
 
       const { cleanContent, attachment } = extractMediaAttachment(rawContent, mediaMap);
       if (attachment) {
@@ -307,15 +343,12 @@ export function parseWhatsAppChat(
   participantsList.sort((a, b) => b.messageCount - a.messageCount);
 
   // Derive default perspective (primary user on the right side)
-  // Usually the second most frequent speaker or "You" / user if named
   let myPerspective = participantsList[0]?.name || '';
-  const youParticipant = participantsList.find(p => p.name.toLowerCase() === 'you' || p.name.toLowerCase() === 'انت');
+  const youParticipant = participantsList.find(p => p.name.toLowerCase() === 'you' || p.name.toLowerCase() === 'انت' || p.name.toLowerCase() === 'أنت');
   if (youParticipant) {
     myPerspective = youParticipant.name;
   } else if (participantsList.length >= 2) {
-    // If chat title or filename contains participant name (e.g. "WhatsApp Chat with Contact.txt")
-    // Then the other person is likely the exporter ("me")
-    const cleanFileName = fileName.toLowerCase();
+    const cleanFileName = cleanUnicode(fileName).toLowerCase();
     const otherParticipant = participantsList.find(p => !cleanFileName.includes(p.name.toLowerCase()));
     if (otherParticipant) {
       myPerspective = otherParticipant.name;
@@ -323,13 +356,19 @@ export function parseWhatsAppChat(
   }
 
   // Derive chat title from file name or participants
-  let chatTitle = fileName
-    .replace(/^WhatsApp Chat with /i, '')
+  let chatTitle = cleanUnicode(fileName)
+    .replace(/^دردشة في واتساب مع\s*/i, '')
+    .replace(/^دردشة واتساب مع\s*/i, '')
+    .replace(/^دردشة WhatsApp مع\s*/i, '')
+    .replace(/^WhatsApp Chat with\s*/i, '')
+    .replace(/^Discussion WhatsApp avec\s*/i, '')
+    .replace(/^Chat de WhatsApp con\s*/i, '')
+    .replace(/^WhatsApp-Chat mit\s*/i, '')
     .replace(/\.zip$/i, '')
     .replace(/\.txt$/i, '')
     .trim();
 
-  if (!chatTitle || chatTitle === 'WhatsApp Chat' || chatTitle === '_chat') {
+  if (!chatTitle || chatTitle === 'WhatsApp Chat' || chatTitle === '_chat' || chatTitle === 'دردشة واتساب') {
     if (participantsList.length === 1) {
       chatTitle = participantsList[0].name;
     } else if (participantsList.length === 2) {

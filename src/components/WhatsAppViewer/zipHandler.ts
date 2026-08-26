@@ -1,12 +1,12 @@
 import JSZip from 'jszip';
 import type { MediaAttachment, ChatSession } from './types';
-import { parseWhatsAppChat, getMediaTypeFromFilename } from './parser';
+import { parseWhatsAppChat, getMediaTypeFromFilename, cleanUnicode } from './parser';
 
 /**
  * Return accurate MIME type for a given filename
  */
 export function getMimeType(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  const ext = cleanUnicode(fileName).split('.').pop()?.toLowerCase() || '';
   switch (ext) {
     case 'webp':
       return 'image/webp';
@@ -31,6 +31,8 @@ export function getMimeType(fileName: string): string {
       return 'audio/aac';
     case 'wav':
       return 'audio/wav';
+    case 'amr':
+      return 'audio/amr';
     case 'mp4':
       return 'video/mp4';
     case 'webm':
@@ -50,8 +52,10 @@ export function getMimeType(fileName: string): string {
  * Revoke Blob URLs created for media attachments to prevent memory leaks
  */
 export function revokeMediaUrls(mediaMap: Record<string, MediaAttachment>): void {
+  const seenUrls = new Set<string>();
   Object.values(mediaMap).forEach((media) => {
-    if (media.blobUrl && media.blobUrl.startsWith('blob:')) {
+    if (media.blobUrl && media.blobUrl.startsWith('blob:') && !seenUrls.has(media.blobUrl)) {
+      seenUrls.add(media.blobUrl);
       try {
         URL.revokeObjectURL(media.blobUrl);
       } catch (err) {
@@ -98,10 +102,11 @@ export async function processWhatsAppFile(
   if (onProgress) onProgress({ percent: 25, statusText: `Extracting ${totalEntries} files...` });
 
   // 1. Locate primary chat text file
-  // Priority: _chat.txt, WhatsApp Chat with *.txt, or any .txt
-  const txtFiles = entries.filter(f => f.name.toLowerCase().endsWith('.txt'));
-  const primaryTxt = txtFiles.find(f => f.name.toLowerCase() === '_chat.txt') ||
-                     txtFiles.find(f => f.name.toLowerCase().includes('whatsapp chat')) ||
+  // Priority: _chat.txt, WhatsApp Chat with *.txt, دردشة *.txt, or any .txt
+  const txtFiles = entries.filter(f => cleanUnicode(f.name).toLowerCase().endsWith('.txt'));
+  const primaryTxt = txtFiles.find(f => cleanUnicode(f.name).toLowerCase() === '_chat.txt') ||
+                     txtFiles.find(f => cleanUnicode(f.name).toLowerCase().includes('whatsapp chat')) ||
+                     txtFiles.find(f => cleanUnicode(f.name).includes('دردشة')) ||
                      txtFiles[0];
 
   if (!primaryTxt) {
@@ -118,6 +123,12 @@ export async function processWhatsAppFile(
     const entryName = entry.name.split('/').pop() || entry.name;
     if (entry === primaryTxt) continue;
 
+    const cleanName = cleanUnicode(entryName);
+    let decodedName = entryName;
+    try {
+      decodedName = decodeURIComponent(entryName);
+    } catch {}
+
     const mediaType = getMediaTypeFromFilename(entryName);
     const mimeType = getMimeType(entryName);
 
@@ -126,13 +137,17 @@ export async function processWhatsAppFile(
       const typedBlob = new Blob([blob], { type: mimeType });
       const blobUrl = URL.createObjectURL(typedBlob);
 
-      mediaMap[entryName] = {
-        fileName: entryName,
+      const attachment: MediaAttachment = {
+        fileName: cleanName,
         blobUrl,
         mediaType,
         size: blob.size,
         mimeType,
       };
+
+      mediaMap[entryName] = attachment;
+      mediaMap[cleanName] = attachment;
+      mediaMap[decodedName] = attachment;
     } catch (err) {
       console.warn(`Failed to extract media entry: ${entryName}`, err);
     }
