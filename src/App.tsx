@@ -7,6 +7,7 @@ import { RedirectHandler } from './components/DynamicQR/RedirectHandler';
 import YashooOSApp from './components/YashooOS/YashooOSApp';
 import YDApp from './components/YD/YDApp';
 import WhatsAppViewerApp from './components/WhatsAppViewer/WhatsAppViewerApp';
+import CertificateAutomatorApp from './components/CA/CertificateAutomatorApp';
 import { LabMaintenanceGuard } from './components/LabMaintenanceGuard';
 
 /**
@@ -21,13 +22,14 @@ import { LabMaintenanceGuard } from './components/LabMaintenanceGuard';
  */
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'proxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es' | 'yd' | 'whatsapp'>(() => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'proxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es' | 'yd' | 'whatsapp' | 'ca'>(() => {
     const path = window.location.pathname;
     if (path === '/proxy') return 'proxy';
     if (path === '/thanawya') return 'thanawya';
     if (path === '/qr') return 'qr';
     if (path === '/yd') return 'yd';
     if (path === '/whatsapp' || path === '/chat') return 'whatsapp';
+    if (path === '/ca' || path === '/certificate') return 'ca';
     if (path === '/yashoo-es' || path === '/es' || path === '/yashoo-os' || path === '/os') return 'yashoo-es';
     if (path.startsWith('/r/')) return 'redirect';
     return 'dashboard';
@@ -56,6 +58,8 @@ const App: React.FC = () => {
         setCurrentView('yd');
       } else if (path === '/whatsapp' || path === '/chat') {
         setCurrentView('whatsapp');
+      } else if (path === '/ca' || path === '/certificate') {
+        setCurrentView('ca');
       } else if (path === '/yashoo-es' || path === '/es' || path === '/yashoo-os' || path === '/os') {
         setCurrentView('yashoo-es');
       } else if (path.startsWith('/r/')) {
@@ -200,6 +204,9 @@ const App: React.FC = () => {
     } else if (id === 'whatsapp') {
       window.history.pushState({}, '', '/whatsapp');
       setCurrentView('whatsapp');
+    } else if (id === 'ca') {
+      window.history.pushState({}, '', '/ca');
+      setCurrentView('ca');
     } else if (id === 'yashoo-es') {
       window.history.pushState({}, '', '/yashoo-es');
       setCurrentView('yashoo-es');
@@ -217,6 +224,11 @@ const App: React.FC = () => {
         <Dashboard 
           onLaunch={handleLaunch} 
           swRegistered={swRegistered} 
+        />
+      )}
+      {currentView === 'ca' && (
+        <CertificateAutomatorApp
+          onBack={handleBack}
         />
       )}
       {currentView === 'whatsapp' && (

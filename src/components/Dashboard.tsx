@@ -10,7 +10,8 @@ import {
   Phone, 
   ExternalLink,
   Check,
-  ShieldCheck
+  ShieldCheck,
+  Award
 } from 'lucide-react';
 import AnimatedLiquidBackground from './AnimatedLiquidBackground';
 
@@ -62,6 +63,18 @@ const YoutubeIcon: React.FC<{ size?: number; className?: string }> = ({ size = 2
 );
 
 const projects: ProjectCardData[] = [
+  {
+    id: 'ca',
+    title: 'CA',
+    desc: 'High-speed mass certificate automator. Connect Google Sheets, visually position text & Google Drive photos, and bulk export 1,000+ certificates with full Arabic and English typography support.',
+    icon: Award,
+    tag: 'Automation Suite',
+    iconColor: 'text-amber-400',
+    iconBg: 'bg-amber-500/10 border-amber-500/20',
+    glowColor: 'group-hover:shadow-amber-500/20 group-hover:border-amber-500/40',
+    btnText: 'Open CA',
+    badgeText: '1,000+ Batch'
+  },
   {
     id: 'whatsapp',
     title: 'WhatsApp Viewer',
