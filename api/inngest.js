@@ -6,11 +6,12 @@ import path from 'path';
 import fs from 'fs';
 
 const execFileAsync = promisify(execFile);
-const INNGEST_KEY = 'sk-inn-apiQ99W3N7WselFCBxBHukEaHZ/9W+aEpmfj6LNFc5W3/PKxjB/r/Hyg3eHdBV9R1Pmlr2+SYsXgAgoWGQrgtmCBA';
+const FALLBACK_KEY = 'sk-inn-apiQ99W3N7WselFCBxBHukEaHZ/9W+aEpmfj6LNFc5W3/PKxjB/r/Hyg3eHdBV9R1Pmlr2+SYsXgAgoWGQrgtmCBA';
+const INNGEST_SIGNING_KEY = process.env.INNGEST_SIGNING_KEY || process.env.INNGEST_EVENT_KEY || FALLBACK_KEY;
 
 export const inngest = new Inngest({
   id: 'yd-youtube-downloader',
-  eventKey: INNGEST_KEY
+  eventKey: process.env.INNGEST_EVENT_KEY || INNGEST_SIGNING_KEY,
 });
 
 function getYtDlpBinaryPath() {
@@ -31,7 +32,7 @@ const processDownloadJob = inngest.createFunction(
   { id: 'yd-process-download', name: 'YD Process YouTube Download' },
   { event: 'yd/download.requested' },
   async ({ event, step }) => {
-    const { url, quality, format } = event.data;
+    const { url } = event.data;
 
     const streamData = await step.run('extract-stream-urls', async () => {
       const binPath = getYtDlpBinaryPath();
@@ -58,5 +59,5 @@ const processDownloadJob = inngest.createFunction(
 export default serve({
   client: inngest,
   functions: [processDownloadJob],
-  signingKey: INNGEST_KEY
+  signingKey: INNGEST_SIGNING_KEY,
 });

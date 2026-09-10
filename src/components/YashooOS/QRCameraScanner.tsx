@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, CameraOff, RefreshCw, AlertCircle, Volume2, VolumeX, Upload, Image as ImageIcon } from 'lucide-react';
 
@@ -22,7 +22,7 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({ onScanSuccess,
   const scanRegionId = 'yashoo-es-qr-reader';
 
   // Beep Audio Feedback via Web Audio API
-  const playBeep = (type: 'success' | 'error') => {
+  const playBeep = useCallback((type: 'success' | 'error') => {
     if (!soundEnabled) return;
     try {
       const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -45,9 +45,20 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({ onScanSuccess,
     } catch {
       // Browser audio restriction handling
     }
-  };
+  }, [soundEnabled]);
 
-  const startScanner = async () => {
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try {
+        await scannerRef.current.stop();
+      } catch (e) {
+        console.warn('Camera stop warning:', e);
+      }
+    }
+    setIsScanning(false);
+  }, []);
+
+  const startScanner = useCallback(async () => {
     if (mode !== 'camera') return;
     setCameraError(null);
     try {
@@ -90,18 +101,7 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({ onScanSuccess,
       );
       setIsScanning(false);
     }
-  };
-
-  const stopScanner = async () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        await scannerRef.current.stop();
-      } catch (e) {
-        console.warn('Camera stop warning:', e);
-      }
-    }
-    setIsScanning(false);
-  };
+  }, [facingMode, lastScannedText, mode, onScanSuccess, playBeep]);
 
   useEffect(() => {
     if (isActive && mode === 'camera') {
@@ -113,7 +113,7 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({ onScanSuccess,
     return () => {
       stopScanner();
     };
-  }, [isActive, mode, facingMode]);
+  }, [isActive, mode, startScanner, stopScanner]);
 
   const toggleCameraFacing = () => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));

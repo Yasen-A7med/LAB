@@ -47,7 +47,7 @@ export const RedirectHandler: React.FC<RedirectHandlerProps> = ({ id }) => {
 
         // Perform instant redirect execution
         window.location.replace(item.target_url);
-      } catch (err) {
+      } catch {
         if (isMounted) {
           setError('Failed to perform redirect.');
           setLoading(false);

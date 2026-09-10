@@ -70,39 +70,43 @@ function normalizeArabic(str: string, aggressive = false): string {
   return cleaned;
 }
 
-// Levenshtein distance for fuzzy matching
+// Levenshtein distance for fuzzy matching using zero-allocation reusable row buffers
+const MAX_LEV_LEN = 64;
+const prevRow = new Int32Array(MAX_LEV_LEN + 1);
+const currRow = new Int32Array(MAX_LEV_LEN + 1);
+
 function editDistance(a: string, b: string): number {
   if (a === b) return 0;
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (aLen === 0) return bLen;
+  if (bLen === 0) return aLen;
 
-  const matrix: number[][] = [];
-
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
+  if (aLen > MAX_LEV_LEN || bLen > MAX_LEV_LEN) {
+    return Math.abs(aLen - bLen) + 5;
   }
 
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j;
+  for (let j = 0; j <= aLen; j++) {
+    prevRow[j] = j;
   }
 
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          Math.min(
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          )
-        );
-      }
+  for (let i = 1; i <= bLen; i++) {
+    currRow[0] = i;
+    const bCode = b.charCodeAt(i - 1);
+    for (let j = 1; j <= aLen; j++) {
+      const cost = a.charCodeAt(j - 1) === bCode ? 0 : 1;
+      currRow[j] = Math.min(
+        currRow[j - 1] + 1,       // insertion
+        prevRow[j] + 1,           // deletion
+        prevRow[j - 1] + cost     // substitution
+      );
+    }
+    for (let j = 0; j <= aLen; j++) {
+      prevRow[j] = currRow[j];
     }
   }
 
-  return matrix[b.length][a.length];
+  return currRow[aLen];
 }
 
 // IndexedDB Helper

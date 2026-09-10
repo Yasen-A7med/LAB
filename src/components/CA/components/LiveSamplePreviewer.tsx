@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -33,34 +33,25 @@ export const LiveSamplePreviewer: React.FC<LiveSamplePreviewerProps> = ({
   const templateImageRef = useRef<HTMLImageElement | null>(null);
 
   const totalRows = sheetData.rows.length;
-  const currentRow = sheetData.rows[currentRowIndex] || {};
-
-  // Load template image once
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      templateImageRef.current = img;
-      renderCurrentCertificate();
-    };
-    img.src = template.src;
-  }, [template.src]);
+  const currentRow = useMemo(() => sheetData.rows[currentRowIndex] || {}, [sheetData.rows, currentRowIndex]);
 
   // Re-render certificate when row or elements change
-  const renderCurrentCertificate = async () => {
-    if (!canvasRef.current || !templateImageRef.current) return;
+  const renderCurrentCertificate = useCallback(async (image?: HTMLImageElement | null) => {
+    const targetImage = image || templateImageRef.current;
+    if (!canvasRef.current || !targetImage) return;
     setIsRendering(true);
 
     try {
       // Ensure fonts are loaded before drawing
       const textFonts = elements
         .filter((el) => el.type === 'text')
-        .map((el) => (el as any).fontFamily);
+        .map((el) => (el as { fontFamily?: string }).fontFamily)
+        .filter((f): f is string => Boolean(f));
       await ensureFontsLoaded(textFonts);
 
       await drawCertificateToCanvas(
         canvasRef.current,
-        templateImageRef.current,
+        targetImage,
         elements,
         currentRow,
         { scale: 0.8 } // Scale slightly for smooth viewport rendering
@@ -70,13 +61,24 @@ export const LiveSamplePreviewer: React.FC<LiveSamplePreviewerProps> = ({
     } finally {
       setIsRendering(false);
     }
-  };
+  }, [currentRow, elements]);
+
+  // Load template image once
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      templateImageRef.current = img;
+      renderCurrentCertificate(img);
+    };
+    img.src = template.src;
+  }, [template.src, renderCurrentCertificate]);
 
   useEffect(() => {
     if (templateImageRef.current) {
       renderCurrentCertificate();
     }
-  }, [currentRowIndex, elements]);
+  }, [renderCurrentCertificate]);
 
   // Single Certificate Download
   const handleDownloadSingle = async () => {

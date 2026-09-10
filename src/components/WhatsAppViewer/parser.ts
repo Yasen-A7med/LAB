@@ -36,7 +36,8 @@ export function normalizeDigits(str: string): string {
 export function cleanUnicode(str: string): string {
   if (!str) return '';
   const noControlChars = str
-    .replace(/[\u200E\u200F\u200B\u200C\u200D\u202A\u202B\u202C\u202D\u202E\u202F\u2060\u2066\u2067\u2068\u2069\uFEFF]/g, '')
+    .replace(/[\u200E\u200F\u200B\u202A-\u202E\u202F\u2060\u2066-\u2069\uFEFF]/g, '')
+    .replace(/\u200C|\u200D/g, '')
     .replace(/[\u060C]/g, ',') // Arabic comma '،'
     .replace(/\u00A0/g, ' ')   // Non-breaking space
     .trim();
@@ -86,7 +87,7 @@ export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey
     .trim();
 
   // Pattern matching: [P1/P2/P3] [Time Hours:Mins(:Secs)?] [AM/PM]?
-  const match = normalised.match(/^(\d{1,4})[./\-](\d{1,2})[./\-](\d{1,4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  const match = normalised.match(/^(\d{1,4})[./-](\d{1,2})[./-](\d{1,4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
   
   if (match) {
     let p1 = parseInt(match[1], 10);
@@ -171,7 +172,7 @@ export function extractMediaAttachment(content: string, mediaMap: Record<string,
   // German: (Datei angehängt)
   // Portuguese: (arquivo anexado)
   // Italian: (allegato)
-  const fileAttachedMatch = trimmed.match(/^([\w\- .]+?\.[a-zA-Z0-9]{2,5})\s*\((?:file attached|الملف مرفق|تم إرفاق ملف|fichier joint|archivo adjunto|Datei angehängt|arquivo anexado|allegato)\)(.*)$/i);
+  const fileAttachedMatch = trimmed.match(/^([\w .-]+?\.[a-zA-Z0-9]{2,5})\s*\((?:file attached|الملف مرفق|تم إرفاق ملف|fichier joint|archivo adjunto|Datei angehängt|arquivo anexado|allegato)\)(.*)$/i);
   
   if (fileAttachedMatch) {
     const filename = cleanUnicode(fileAttachedMatch[1].trim());
@@ -184,7 +185,7 @@ export function extractMediaAttachment(content: string, mediaMap: Record<string,
   }
 
   // Tag format: <attached: filename.jpg> or <مرفق: filename.jpg>
-  const attachedTagMatch = trimmed.match(/^<[\w\u0600-\u06FF]+:\s*([\w\- .]+?\.[a-zA-Z0-9]{2,5})>(.*)$/i);
+  const attachedTagMatch = trimmed.match(/^<[\w\u0600-\u06FF]+:\s*([\w .-]+?\.[a-zA-Z0-9]{2,5})>(.*)$/i);
   if (attachedTagMatch) {
     const filename = cleanUnicode(attachedTagMatch[1].trim());
     const remainingText = attachedTagMatch[2].trim();
@@ -255,10 +256,10 @@ export function parseWhatsAppChat(
 
   // Standard Header Regexes:
   // 1. Android: "8/17/26, 10:12 PM - Sender: Message" or "١٦/١١/٢٠٢٥، ٧:٣٩ ص - Sender: Message"
-  const androidRegex = /^(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\s*-\s*(?:([^:]+?):\s*)?(.*)$/i;
+  const androidRegex = /^(\d{1,4}[./-]\d{1,2}[./-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\s*-\s*(?:([^:]+?):\s*)?(.*)$/i;
 
   // 2. iOS: "[17/08/2026, 22:12:30] Sender: Message" or "[١٦/١١/٢٠٢٥، ٧:٣٩:٠٠ ص] Sender: Message"
-  const iosRegex = /^\[(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\]\s*(?:([^:]+?):\s*)?(.*)$/i;
+  const iosRegex = /^\[(\d{1,4}[./-]\d{1,2}[./-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\]\s*(?:([^:]+?):\s*)?(.*)$/i;
 
   let currentMessage: ChatMessage | null = null;
   let totalMediaCount = 0;

@@ -1,14 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense } from 'react';
 import Dashboard from './components/Dashboard';
-import Proxy from './components/Proxy';
-import Thanawya from './components/Thanawya';
-import { DynamicQRStudio } from './components/DynamicQR/DynamicQRStudio';
-import { RedirectHandler } from './components/DynamicQR/RedirectHandler';
-import YashooOSApp from './components/YashooOS/YashooOSApp';
-import YDApp from './components/YD/YDApp';
-import WhatsAppViewerApp from './components/WhatsAppViewer/WhatsAppViewerApp';
-import CertificateAutomatorApp from './components/CA/CertificateAutomatorApp';
 import { LabMaintenanceGuard } from './components/LabMaintenanceGuard';
+import { AppLoadingFallback } from './components/AppLoadingFallback';
+import { useNavigation } from './hooks/useNavigation';
+import { useProxyWorker } from './hooks/useProxyWorker';
 
 /**
  * ===========================================================================================
@@ -21,208 +16,29 @@ import { LabMaintenanceGuard } from './components/LabMaintenanceGuard';
  * ===========================================================================================
  */
 
+// Code-split heavy sub-applications to optimize initial landing page load
+const Proxy = React.lazy(() => import('./components/Proxy'));
+const Thanawya = React.lazy(() => import('./components/Thanawya'));
+const DynamicQRStudio = React.lazy(() => 
+  import('./components/DynamicQR/DynamicQRStudio').then(m => ({ default: m.DynamicQRStudio }))
+);
+const RedirectHandler = React.lazy(() => 
+  import('./components/DynamicQR/RedirectHandler').then(m => ({ default: m.RedirectHandler }))
+);
+const YashooOSApp = React.lazy(() => import('./components/YashooOS/YashooOSApp'));
+const YDApp = React.lazy(() => import('./components/YD/YDApp'));
+const WhatsAppViewerApp = React.lazy(() => import('./components/WhatsAppViewer/WhatsAppViewerApp'));
+const CertificateAutomatorApp = React.lazy(() => import('./components/CA/CertificateAutomatorApp'));
+
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'proxy' | 'thanawya' | 'qr' | 'redirect' | 'yashoo-es' | 'yd' | 'whatsapp' | 'ca'>(() => {
-    const path = window.location.pathname;
-    if (path === '/proxy') return 'proxy';
-    if (path === '/thanawya') return 'thanawya';
-    if (path === '/qr') return 'qr';
-    if (path === '/yd') return 'yd';
-    if (path === '/whatsapp' || path === '/chat') return 'whatsapp';
-    if (path === '/ca' || path === '/certificate') return 'ca';
-    if (path === '/yashoo-es' || path === '/es' || path === '/yashoo-os' || path === '/os') return 'yashoo-es';
-    if (path.startsWith('/r/')) return 'redirect';
-    return 'dashboard';
-  });
-
-  const [swRegistered, setSwRegistered] = useState(false);
-  const [transportType, setTransportType] = useState<'wisp' | 'bare'>(() => {
-    return (localStorage.getItem('proxy_transport_type') as 'wisp' | 'bare') || 'wisp';
-  });
-  const [serverUrl, setServerUrl] = useState<string>(() => {
-    return localStorage.getItem('proxy_server_url') || 'wss://nebulaproxy.io/wisp/';
-  });
-
-  useEffect(() => {
-    registerSW();
-
-    const handlePopState = () => {
-      const path = window.location.pathname;
-      if (path === '/proxy') {
-        setCurrentView('proxy');
-      } else if (path === '/thanawya') {
-        setCurrentView('thanawya');
-      } else if (path === '/qr') {
-        setCurrentView('qr');
-      } else if (path === '/yd') {
-        setCurrentView('yd');
-      } else if (path === '/whatsapp' || path === '/chat') {
-        setCurrentView('whatsapp');
-      } else if (path === '/ca' || path === '/certificate') {
-        setCurrentView('ca');
-      } else if (path === '/yashoo-es' || path === '/es' || path === '/yashoo-os' || path === '/os') {
-        setCurrentView('yashoo-es');
-      } else if (path.startsWith('/r/')) {
-        setCurrentView('redirect');
-      } else {
-        setCurrentView('dashboard');
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  const registerSW = async () => {
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.register('/uv/sw.js', {
-          scope: '/uv/service/',
-        });
-
-        if (!registration.active) {
-          await new Promise<void>((resolve) => {
-            const sw = registration.installing || registration.waiting;
-            if (!sw) { resolve(); return; }
-            sw.addEventListener('statechange', () => {
-              if (sw.state === 'activated') resolve();
-            });
-          });
-        }
-
-        const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
-        const connection = new BareMuxConnection('/baremux/worker.js');
-        
-        const type = localStorage.getItem('proxy_transport_type') || 'wisp';
-        const userUrl = localStorage.getItem('proxy_server_url') || 'wss://nebulaproxy.io/wisp/';
-
-        if (type === 'wisp') {
-          const lastWorkingTransport = localStorage.getItem('proxy_last_working_transport');
-          
-          if (lastWorkingTransport === 'bare') {
-            const bareUrl = `${window.location.origin}/api/bare/`;
-            await connection.setTransport('/bare/index.mjs', [bareUrl]);
-            setTransportType('bare');
-            setServerUrl(bareUrl);
-          } else {
-            const FALLBACK_WISPS = [
-              'wss://nebulaproxy.io/wisp/',
-              'wss://anura.pro/wisp/',
-              'wss://wisp.mercurywork.shop/',
-              'wss://wisp.incognito.surf/',
-            ];
-            const servers = [userUrl, ...FALLBACK_WISPS.filter(s => s !== userUrl)];
-            
-            const testWisp = (url: string, timeoutMs = 3000): Promise<boolean> => {
-              return new Promise((resolve) => {
-                try {
-                  const ws = new WebSocket(url);
-                  const timer = setTimeout(() => { 
-                    try { ws.close(); } catch(e) {}
-                    resolve(false); 
-                  }, timeoutMs);
-                  ws.onopen = () => { 
-                    clearTimeout(timer); 
-                    ws.close(); 
-                    resolve(true); 
-                  };
-                  ws.onerror = () => { 
-                    clearTimeout(timer); 
-                    try { ws.close(); } catch(e) {}
-                    resolve(false); 
-                  };
-                  ws.onclose = () => {
-                    clearTimeout(timer);
-                    resolve(false);
-                  };
-                } catch(e) {
-                  resolve(false);
-                }
-              });
-            };
-
-            let foundWisp = false;
-            for (const server of servers) {
-              const ok = await testWisp(server);
-              if (ok) {
-                await connection.setTransport('/epoxy/index.mjs', [{ wisp: server }]);
-                localStorage.setItem('proxy_last_working_transport', 'wisp');
-                foundWisp = true;
-                break;
-              }
-            }
-
-            if (!foundWisp) {
-              const bareUrl = `${window.location.origin}/api/bare/`;
-              await connection.setTransport('/bare/index.mjs', [bareUrl]);
-              setTransportType('bare');
-              setServerUrl(bareUrl);
-              localStorage.setItem('proxy_last_working_transport', 'bare');
-            }
-          }
-        } else {
-          await connection.setTransport('/bare/index.mjs', [userUrl]);
-        }
-
-        setSwRegistered(true);
-      } catch (err) {
-        console.error('UV setup failed:', err);
-        setSwRegistered(true);
-      }
-    }
-  };
-
-  const updateTransportConfig = async (type: 'wisp' | 'bare', url: string) => {
-    try {
-      const { BareMuxConnection } = await import('@mercuryworkshop/bare-mux');
-      const connection = new BareMuxConnection('/baremux/worker.js');
-      if (type === 'wisp') {
-        await connection.setTransport('/epoxy/index.mjs', [{ wisp: url }]);
-      } else {
-        await connection.setTransport('/bare/index.mjs', [url]);
-      }
-      localStorage.setItem('proxy_transport_type', type);
-      localStorage.setItem('proxy_server_url', url);
-      setTransportType(type);
-      setServerUrl(url);
-    } catch (err) {
-      console.error('Failed to update transport:', err);
-      throw err;
-    }
-  };
-
-  const handleLaunch = (id: string) => {
-    if (id === 'proxy') {
-      window.open('/proxy', '_blank');
-    } else if (id === 'thanawya') {
-      window.open('/thanawya', '_blank');
-    } else if (id === 'qr') {
-      window.history.pushState({}, '', '/qr');
-      setCurrentView('qr');
-    } else if (id === 'yd') {
-      window.history.pushState({}, '', '/yd');
-      setCurrentView('yd');
-    } else if (id === 'whatsapp') {
-      window.history.pushState({}, '', '/whatsapp');
-      setCurrentView('whatsapp');
-    } else if (id === 'ca') {
-      window.history.pushState({}, '', '/ca');
-      setCurrentView('ca');
-    } else if (id === 'yashoo-es') {
-      window.history.pushState({}, '', '/yashoo-es');
-      setCurrentView('yashoo-es');
-    }
-  };
-
-  const handleBack = () => {
-    window.history.pushState({}, '', '/');
-    setCurrentView('dashboard');
-  };
+  const { currentView, handleBack, launchProject } = useNavigation();
+  const { swRegistered, transportType, serverUrl, updateTransportConfig } = useProxyWorker();
 
   return (
-    <>
+    <Suspense fallback={<AppLoadingFallback />}>
       {currentView === 'dashboard' && (
         <Dashboard 
-          onLaunch={handleLaunch} 
+          onLaunch={launchProject} 
           swRegistered={swRegistered} 
         />
       )}
@@ -269,7 +85,7 @@ const App: React.FC = () => {
           onBack={handleBack}
         />
       )}
-    </>
+    </Suspense>
   );
 };
 

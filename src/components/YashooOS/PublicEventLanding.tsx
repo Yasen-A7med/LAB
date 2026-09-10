@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Calendar,
   MapPin,
@@ -103,6 +103,42 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
     fetchEventData();
   }, [selectedProjectId]);
 
+  // Handle Ticket Lookup
+  const handleLookupTicket = useCallback(async (queryToSearch?: string) => {
+    const target = (queryToSearch || lookupQuery).trim().toLowerCase();
+    if (!target) return;
+
+    setLookingUp(true);
+    setLookupError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('project_id', selectedProjectId)
+        .or(`email.eq.${target},ticket_id.eq.${target.toUpperCase()},id.eq.${target}`)
+        .maybeSingle();
+
+      if (!error && data) {
+        setActiveGuest({
+          id: data.id,
+          name: data.name || 'Event Attendee',
+          email: data.email,
+          ticket_id: data.ticket_id || `TK-${data.id.slice(0, 6).toUpperCase()}`,
+          status: data.status,
+        });
+        setShowPassModal(true);
+        setLookupQuery('');
+      } else {
+        setLookupError('No ticket found matching this email or ticket ID.');
+      }
+    } catch {
+      setLookupError('Lookup error. Please try again.');
+    } finally {
+      setLookingUp(false);
+    }
+  }, [lookupQuery, selectedProjectId]);
+
   // Handle URL Ticket Parameter (e.g. ?ticket=TK-8F92A)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -110,7 +146,7 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
     if (ticketParam) {
       handleLookupTicket(ticketParam);
     }
-  }, []);
+  }, [handleLookupTicket]);
 
   // Handle New Guest Registration with strict email normalization
   const handleRegister = async (e: React.FormEvent) => {
@@ -179,42 +215,6 @@ export const PublicEventLanding: React.FC<PublicEventLandingProps> = ({
       setRegisterError('Network error. Please try again.');
     } finally {
       setRegistering(false);
-    }
-  };
-
-  // Handle Ticket Lookup
-  const handleLookupTicket = async (queryToSearch?: string) => {
-    const target = (queryToSearch || lookupQuery).trim().toLowerCase();
-    if (!target) return;
-
-    setLookingUp(true);
-    setLookupError(null);
-
-    try {
-      const { data, error } = await supabase
-        .from('guests')
-        .select('*')
-        .eq('project_id', selectedProjectId)
-        .or(`email.eq.${target},ticket_id.eq.${target.toUpperCase()},id.eq.${target}`)
-        .maybeSingle();
-
-      if (!error && data) {
-        setActiveGuest({
-          id: data.id,
-          name: data.name || 'Event Attendee',
-          email: data.email,
-          ticket_id: data.ticket_id || `TK-${data.id.slice(0, 6).toUpperCase()}`,
-          status: data.status,
-        });
-        setShowPassModal(true);
-        setLookupQuery('');
-      } else {
-        setLookupError('No ticket found matching this email or ticket ID.');
-      }
-    } catch {
-      setLookupError('Lookup error. Please try again.');
-    } finally {
-      setLookingUp(false);
     }
   };
 
