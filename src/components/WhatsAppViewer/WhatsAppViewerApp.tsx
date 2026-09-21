@@ -193,7 +193,7 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
     const [y, m, d] = dateKey.split('-').map(Number);
     if (!y || !m || !d) return dateKey;
     const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString(undefined, {
+    return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -625,7 +625,9 @@ export const WhatsAppViewerApp: React.FC<WhatsAppViewerAppProps> = ({ onBack }) 
                   
                   {/* Date Divider Pill */}
                   <div className="flex justify-center my-4 sticky top-2 z-20">
-                    <span className={`px-3.5 py-1 rounded-lg text-[11px] font-semibold tracking-wide shadow-sm select-none ${
+                    <span 
+                      title={group.dateKey}
+                      className={`px-3.5 py-1 rounded-lg text-[11px] font-semibold tracking-wide shadow-sm select-none cursor-default ${
                       isDark 
                         ? 'bg-[#182229] text-gray-300 border border-white/[0.04]' 
                         : 'bg-[#ffffff] text-gray-600 border border-gray-200'

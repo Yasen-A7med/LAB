@@ -70,10 +70,66 @@ export function getMediaTypeFromFilename(filename: string): MediaType {
   return 'document';
 }
 
+export type DateFormatOrder = 'DMY' | 'MDY' | 'YMD';
+
 /**
- * Robust Multi-Locale Date & Time Parser
+ * Detect the date format of the transcript by scanning header dates
+ * across the entire file for numbers > 12 (which can only be days, not months).
  */
-export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey: string; timeStr: string } {
+export function detectDateFormat(lines: string[]): DateFormatOrder {
+  let p1Gt12 = 0; // Evidence for D/M/Y (Day is first)
+  let p2Gt12 = 0; // Evidence for M/D/Y (Day is second)
+  let p1Year = 0; // Evidence for Y/M/D (Year is first)
+
+  const maxScan = Math.min(lines.length, 5000);
+  for (let i = 0; i < maxScan; i++) {
+    const cleaned = cleanUnicode(lines[i]);
+    const m = cleaned.match(/^\[?(\d{1,4})[./\-](\d{1,2})[./\-](\d{1,4})/);
+    if (!m) continue;
+
+    const p1 = parseInt(m[1], 10);
+    const p2 = parseInt(m[2], 10);
+
+    if (p1 > 1000) {
+      p1Year++;
+    } else {
+      if (p1 > 12 && p2 <= 12) p1Gt12++;
+      if (p2 > 12 && p1 <= 12) p2Gt12++;
+    }
+
+    // Early exit if clear, overwhelming evidence is found
+    if (p1Gt12 > 10 && p2Gt12 === 0) return 'DMY';
+    if (p2Gt12 > 10 && p1Gt12 === 0) return 'MDY';
+    if (p1Year > 10) return 'YMD';
+  }
+
+  if (p1Year > 0 && p1Year >= p1Gt12 && p1Year >= p2Gt12) {
+    return 'YMD';
+  }
+  if (p2Gt12 > p1Gt12) {
+    return 'MDY';
+  }
+  if (p1Gt12 > p2Gt12) {
+    return 'DMY';
+  }
+
+  // If inconclusive (all days sampled are <= 12):
+  // Check if text contains Arabic markers (Arabic WhatsApp exports default to Day/Month/Year)
+  const sampleText = lines.slice(0, 100).join(' ');
+  if (/[صم]/.test(sampleText) || /دردشة/.test(sampleText) || /الرسائل والمكالمات/.test(sampleText)) {
+    return 'DMY';
+  }
+
+  return 'MDY';
+}
+
+/**
+ * Robust Multi-Locale Date & Time Parser adhering to the detected transcript date format
+ */
+export function parseWhatsAppDate(
+  dateStr: string,
+  formatOrder: DateFormatOrder = 'DMY'
+): { date: Date | null; dateKey: string; timeStr: string } {
   const cleaned = cleanUnicode(dateStr);
   let parsedDate: Date | null = null;
 
@@ -87,7 +143,7 @@ export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey
     .trim();
 
   // Pattern matching: [P1/P2/P3] [Time Hours:Mins(:Secs)?] [AM/PM]?
-  const match = normalised.match(/^(\d{1,4})[./-](\d{1,2})[./-](\d{1,4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  const match = normalised.match(/^(\d{1,4})[./\-](\d{1,2})[./\-](\d{1,4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
   
   if (match) {
     let p1 = parseInt(match[1], 10);
@@ -102,20 +158,34 @@ export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey
     let month = p2;
     let day = p1;
 
-    if (p1 > 1000) {
+    if (formatOrder === 'YMD' || p1 > 1000) {
       // YYYY-MM-DD
       year = p1;
       month = p2;
       day = p3;
-    } else if (p3 < 100) {
-      // 2-digit year (e.g. 25, 26)
-      year = 2000 + p3;
-    }
+    } else {
+      if (p3 < 100) {
+        // 2-digit year (e.g. 25, 26)
+        year = 2000 + p3;
+      }
 
-    // Heuristic: if p1 <= 12 and p2 > 12 -> MM/DD/YYYY format
-    if (p1 <= 12 && p2 > 12) {
-      month = p1;
-      day = p2;
+      // Respect detected format order with sanity override for impossible months (> 12)
+      if (p1 > 12 && p2 <= 12) {
+        // p1 cannot be a month, must be Day/Month
+        day = p1;
+        month = p2;
+      } else if (p2 > 12 && p1 <= 12) {
+        // p2 cannot be a month, must be Month/Day
+        day = p2;
+        month = p1;
+      } else if (formatOrder === 'MDY') {
+        month = p1;
+        day = p2;
+      } else {
+        // DMY default
+        day = p1;
+        month = p2;
+      }
     }
 
     if (ampm === 'PM' && hours < 12) hours += 12;
@@ -143,10 +213,10 @@ export function parseWhatsAppDate(dateStr: string): { date: Date | null; dateKey
     ? `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
     : 'Unknown Date';
 
-  // Format clean display time
+  // Format clean display time in standard English
   let timeStr = '';
   if (parsedDate && !isNaN(parsedDate.getTime())) {
-    timeStr = parsedDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    timeStr = parsedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   } else {
     const timeMatch = cleaned.match(/(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)$/i);
     timeStr = timeMatch ? timeMatch[1].trim() : cleaned;
@@ -254,12 +324,15 @@ export function parseWhatsAppChat(
   const messages: ChatMessage[] = [];
   const senderCounts: Record<string, { count: number; media: number }> = {};
 
+  // 1. Detect transcript date format upfront across the whole file
+  const dateFormat = detectDateFormat(lines);
+
   // Standard Header Regexes:
   // 1. Android: "8/17/26, 10:12 PM - Sender: Message" or "١٦/١١/٢٠٢٥، ٧:٣٩ ص - Sender: Message"
-  const androidRegex = /^(\d{1,4}[./-]\d{1,2}[./-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\s*-\s*(?:([^:]+?):\s*)?(.*)$/i;
+  const androidRegex = /^(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\s*-\s*(?:([^:]+?):\s*)?(.*)$/i;
 
   // 2. iOS: "[17/08/2026, 22:12:30] Sender: Message" or "[١٦/١١/٢٠٢٥، ٧:٣٩:٠٠ ص] Sender: Message"
-  const iosRegex = /^\[(\d{1,4}[./-]\d{1,2}[./-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\]\s*(?:([^:]+?):\s*)?(.*)$/i;
+  const iosRegex = /^\[(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}[,\s]+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|[\u202f\s]*[AP]M|ص|م)?)\]\s*(?:([^:]+?):\s*)?(.*)$/i;
 
   let currentMessage: ChatMessage | null = null;
   let totalMediaCount = 0;
@@ -287,7 +360,7 @@ export function parseWhatsAppChat(
       const rawSender = dateMatch[2] ? dateMatch[2].trim() : undefined;
       const rawContent = dateMatch[3] !== undefined ? dateMatch[3] : '';
 
-      const { date, dateKey, timeStr } = parseWhatsAppDate(rawDate);
+      const { date, dateKey, timeStr } = parseWhatsAppDate(rawDate, dateFormat);
       const isSystem = !rawSender || isSystemMessage(rawContent, !!rawSender);
 
       const sender = isSystem ? 'System' : (rawSender || 'Unknown');
@@ -396,5 +469,6 @@ export function parseWhatsAppChat(
     totalMessages: messages.length,
     totalMedia: totalMediaCount,
     isGroup: participantsList.length > 2,
+    dateFormat,
   };
 }

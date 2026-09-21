@@ -40,6 +40,7 @@ export interface ChatSession {
   totalMessages: number;
   totalMedia: number;
   isGroup: boolean;
+  dateFormat?: 'DMY' | 'MDY' | 'YMD';
 }
 
 export interface FilterOptions {

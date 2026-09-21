@@ -51,7 +51,7 @@ export const ChatInfoSidebar: React.FC<ChatInfoSidebarProps> = ({
 
   const formatDate = (date: Date | null) => {
     if (!date) return 'N/A';
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   const handleExportJSON = () => {

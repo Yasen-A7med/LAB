@@ -301,7 +301,10 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
 
           {/* Bottom Timestamp & Double Checkmarks */}
           <div className="flex items-center justify-end gap-1 mt-1 text-[11px] float-right ml-3 select-none">
-            <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+            <span 
+              className={isDark ? 'text-gray-400' : 'text-gray-500'}
+              title={message.rawDateStr ? `Sent: ${message.rawDateStr}` : undefined}
+            >
               {message.timeStr}
             </span>
             {isOutgoing && (
