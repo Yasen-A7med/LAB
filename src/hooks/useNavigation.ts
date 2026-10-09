@@ -52,6 +52,8 @@ export function useNavigation(): UseNavigationReturn {
       navigate('ca');
     } else if (id === 'yashoo-es') {
       navigate('yashoo-es');
+    } else if (id === 'quiz' || id === 'compass') {
+      navigate('quiz');
     }
   }, [navigate]);
 

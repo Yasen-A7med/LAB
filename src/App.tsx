@@ -29,6 +29,7 @@ const YashooOSApp = React.lazy(() => import('./components/YashooOS/YashooOSApp')
 const YDApp = React.lazy(() => import('./components/YD/YDApp'));
 const WhatsAppViewerApp = React.lazy(() => import('./components/WhatsAppViewer/WhatsAppViewerApp'));
 const CertificateAutomatorApp = React.lazy(() => import('./components/CA/CertificateAutomatorApp'));
+const PersonalityQuizApp = React.lazy(() => import('./components/PersonalityQuiz/PersonalityQuizApp'));
 
 const App: React.FC = () => {
   const { currentView, handleBack, launchProject } = useNavigation();
@@ -79,6 +80,11 @@ const App: React.FC = () => {
         <LabMaintenanceGuard onBack={handleBack}>
           <YashooOSApp onBack={handleBack} />
         </LabMaintenanceGuard>
+      )}
+      {currentView === 'quiz' && (
+        <PersonalityQuizApp
+          onBack={handleBack}
+        />
       )}
       {currentView === 'redirect' && (
         <RedirectHandler

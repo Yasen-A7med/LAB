@@ -11,7 +11,8 @@ import {
   ExternalLink,
   Check,
   ShieldCheck,
-  Award
+  Award,
+  Compass
 } from 'lucide-react';
 import AnimatedLiquidBackground from './AnimatedLiquidBackground';
 
@@ -63,6 +64,18 @@ const YoutubeIcon: React.FC<{ size?: number; className?: string }> = ({ size = 2
 );
 
 const projects: ProjectCardData[] = [
+  {
+    id: 'quiz',
+    title: 'Personality Compass',
+    desc: 'Deep projective psychometric quiz. Discover your intuitive archetypes, emotional charisma score, and personal boundaries across 25 engaging scenarios with instant bilingual sharing.',
+    icon: Compass,
+    tag: 'Psychology Suite',
+    iconColor: 'text-purple-400',
+    iconBg: 'bg-purple-500/10 border-purple-500/20',
+    glowColor: 'group-hover:shadow-purple-500/20 group-hover:border-purple-500/40',
+    btnText: 'Start Assessment',
+    badgeText: 'New 2026'
+  },
   {
     id: 'ca',
     title: 'CA',
