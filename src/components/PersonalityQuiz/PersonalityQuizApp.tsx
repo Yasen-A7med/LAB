@@ -408,18 +408,13 @@ export const PersonalityQuizApp: React.FC<PersonalityQuizAppProps> = ({ onBack }
                         <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-tr from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center shadow-xl">
                           <IconComponent className="w-12 h-12 sm:w-14 sm:h-14 text-purple-400" />
                         </div>
-                        <div className="absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-purple-600 text-white font-black text-xs shadow-md">
-                          {result.primaryArchetype}
-                        </div>
                       </div>
 
                       {/* Header details */}
                       <div className="flex-1 flex flex-col gap-2">
                         <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                           <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${primary.badgeColor}`}>
-                            {result.isDual && secondary 
-                              ? (lang === 'ar' ? 'النمط المزدوج المتناغم' : 'Harmonized Dual Archetype')
-                              : (lang === 'ar' ? 'النمط الكاريزمي الأساسي' : 'Primary Dominant Archetype')}
+                            {lang === 'ar' ? 'نمط شخصيتك' : 'Your Personality Profile'}
                           </span>
                           <span className="text-xs text-slate-400 flex items-center gap-1">
                             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -604,43 +599,6 @@ export const PersonalityQuizApp: React.FC<PersonalityQuizAppProps> = ({ onBack }
                 </div>
               </div>
 
-              {/* Choices Distribution Chart */}
-              <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-6 backdrop-blur-xl shadow-lg flex flex-col gap-4">
-                <h3 className="text-sm font-bold text-slate-300">
-                  {lang === 'ar' ? 'توزيع الأنماط ونسب الاختيارات (من إجمالي 25 سؤالاً)' : 'Archetype Distribution Across All 25 Scenarios'}
-                </h3>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {(['A', 'B', 'C', 'D'] as ChoiceKey[]).map((key) => {
-                    const count = result.counts[key] || 0;
-                    const percent = Math.round((count / 25) * 100);
-                    const prof = ARCHETYPE_PROFILES[key];
-
-                    return (
-                      <div 
-                        key={key}
-                        className={`p-3.5 rounded-xl border flex flex-col gap-1.5 ${
-                          key === result.primaryArchetype 
-                            ? 'bg-purple-900/20 border-purple-500/40 text-white' 
-                            : 'bg-white/5 border-white/5 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold">{key} • {lang === 'ar' ? prof.title.ar : prof.title.en}</span>
-                          <span className="font-mono text-purple-300">{count}/25</span>
-                        </div>
-                        <div className="text-lg font-black">{percent}%</div>
-                        <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-purple-500 rounded-full" 
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Share Banner Bottom Reminder */}
               <div className="flex items-center justify-center gap-3 pt-4">

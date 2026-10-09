@@ -81,7 +81,7 @@ export function generateShareText(result: QuizResult, lang: Language): string {
     ? (isAr 
         ? `✨ النمط المزدوج: ${primary.title.ar} + ${secondary.title.ar}` 
         : `✨ Dual Archetype: ${primary.title.en} + ${secondary.title.en}`)
-    : (isAr ? `✨ النمط الأساسي: ${primary.title.ar}` : `✨ Primary Archetype: ${primary.title.en}`);
+    : (isAr ? `✨ نمط شخصيتك: ${primary.title.ar}` : `✨ Your Personality: ${primary.title.en}`);
 
   const psychTitle = isAr
     ? `👑 اللقب النفسي: ${primary.psychTitle.ar}`
