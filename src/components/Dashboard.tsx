@@ -12,7 +12,8 @@ import {
   Check,
   ShieldCheck,
   Award,
-  Compass
+  Compass,
+  Sparkles
 } from 'lucide-react';
 import AnimatedLiquidBackground from './AnimatedLiquidBackground';
 
@@ -64,6 +65,18 @@ const YoutubeIcon: React.FC<{ size?: number; className?: string }> = ({ size = 2
 );
 
 const projects: ProjectCardData[] = [
+  {
+    id: 'gef',
+    title: 'GEF Runway Outreach',
+    desc: 'Executive modeling agency directory and automated outreach hub for GEF International Fashion Show 2026. Features 21 verified agencies in Cairo, 1-click WhatsApp dispatch, direct email integration, and real-time status tracking.',
+    icon: Sparkles,
+    tag: 'Outreach Suite',
+    iconColor: 'text-blue-400',
+    iconBg: 'bg-blue-500/10 border-blue-500/20',
+    glowColor: 'group-hover:shadow-blue-500/20 group-hover:border-blue-500/40',
+    btnText: 'Open Runway Hub',
+    badgeText: 'GEF 2026'
+  },
   {
     id: 'quiz',
     title: 'Personality Compass',
