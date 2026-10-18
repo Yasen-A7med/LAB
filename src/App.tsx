@@ -30,7 +30,6 @@ const YDApp = React.lazy(() => import('./components/YD/YDApp'));
 const WhatsAppViewerApp = React.lazy(() => import('./components/WhatsAppViewer/WhatsAppViewerApp'));
 const CertificateAutomatorApp = React.lazy(() => import('./components/CA/CertificateAutomatorApp'));
 const PersonalityQuizApp = React.lazy(() => import('./components/PersonalityQuiz/PersonalityQuizApp'));
-const GEFFashionApp = React.lazy(() => import('./components/GEF/GEFFashionApp'));
 
 const App: React.FC = () => {
   const { currentView, handleBack, launchProject } = useNavigation();
@@ -84,11 +83,6 @@ const App: React.FC = () => {
       )}
       {currentView === 'quiz' && (
         <PersonalityQuizApp
-          onBack={handleBack}
-        />
-      )}
-      {currentView === 'gef' && (
-        <GEFFashionApp
           onBack={handleBack}
         />
       )}

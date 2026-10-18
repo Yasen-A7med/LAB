@@ -12,8 +12,7 @@ import {
   Check,
   ShieldCheck,
   Award,
-  Compass,
-  Sparkles
+  Compass
 } from 'lucide-react';
 import AnimatedLiquidBackground from './AnimatedLiquidBackground';
 
@@ -65,18 +64,6 @@ const YoutubeIcon: React.FC<{ size?: number; className?: string }> = ({ size = 2
 );
 
 const projects: ProjectCardData[] = [
-  {
-    id: 'gef',
-    title: 'GEF Fashion Show',
-    desc: 'Modeling Agencies Outreach & Partner Dispatch Portal for the GEF 2026 International Fashion Show at JW Marriott Cairo. 1-click WhatsApp, Instagram & Email dispatch with real-time status tracking.',
-    icon: Sparkles,
-    tag: 'Fashion Summit',
-    iconColor: 'text-amber-400',
-    iconBg: 'bg-amber-500/10 border-amber-500/20',
-    glowColor: 'group-hover:shadow-amber-500/20 group-hover:border-amber-500/40',
-    btnText: 'Open Portal',
-    badgeText: 'JW Marriott 2026'
-  },
   {
     id: 'quiz',
     title: 'Personality Compass',

@@ -54,8 +54,6 @@ export function useNavigation(): UseNavigationReturn {
       navigate('yashoo-es');
     } else if (id === 'quiz' || id === 'compass') {
       navigate('quiz');
-    } else if (id === 'gef' || id === 'fashion' || id === 'models') {
-      navigate('gef');
     }
   }, [navigate]);
 
