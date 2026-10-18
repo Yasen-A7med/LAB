@@ -8,7 +8,19 @@ interface GEFTemplatesModalProps {
   copiedLabel: string | null;
 }
 
-const TEMPLATE_A = `Dear [Agency Name] Team, Hope this message finds you well. I am Yassin from the Global Entrepreneurship Festival (GEF) 2026 organizing team. On 7 November 2026, we are hosting the GEF International Fashion Show at the JW Marriott Hotel Cairo, under the auspices of H.E. Dr. Mostafa Madbouly, Prime Minister of Egypt, featuring 15 international designers from 12 countries. We are looking to partner with a premier modeling agency in Egypt to supply professional male and female runway models (Fittings & Rehearsals: Nov 5–6, Show Day: Nov 7) in exchange for high-level global visibility, international media coverage, and full runway photography/videography. Could we arrange a brief call today or tomorrow to coordinate the next steps? Best regards, Yassin`;
+const TEMPLATE_A = `Dear [Agency Name] Team,
+
+Hope you're having a great day.
+
+I am Yasen from the GEF team. On 7 November 2026, we are hosting the GEF International Fashion Show at JW Marriott Cairo under the auspices of the Prime Minister, showcasing 15 international designers.
+
+We are looking to partner with a premier modeling agency in Egypt to supply professional runway models for the show (Fittings: Nov 5–6, Main Show: Nov 7) in exchange for global media coverage, runway photo/video assets, and international exposure.
+
+Can we jump on a brief call today or tomorrow to align?
+
+Best regards,
+Yasen
++201128209072`;
 
 const TEMPLATE_B_SUBJECT = `Official Modeling Agency Partnership — GEF International Fashion Show 2026 (JW Marriott Cairo)`;
 
@@ -16,7 +28,7 @@ const TEMPLATE_B_BODY = `Dear [Contact Name / Agency Management],
 
 Hope this email finds you well.
 
-I am Yassin, reaching out from the organizing team of the GEF International Fashion Show 2026, a headline event of the Global Entrepreneurship Festival (GEF) taking place on 7 November 2026 at the JW Marriott Hotel, Cairo, Egypt, under the distinguished auspices of H.E. Dr. Mostafa Madbouly, Prime Minister of the Arab Republic of Egypt.
+I am Yasen, reaching out from the organizing team of the GEF International Fashion Show 2026, a headline event of the Global Entrepreneurship Festival (GEF) taking place on 7 November 2026 at the JW Marriott Hotel, Cairo, Egypt, under the distinguished auspices of H.E. Dr. Mostafa Madbouly, Prime Minister of the Arab Republic of Egypt.
 
 The show brings together 15 international luxury designers from 12 countries across 5 continents before an audience of over 1,000 decision-makers, buyers, investors, diplomats, celebrities, and international media executives from 70+ countries.
 
@@ -35,7 +47,8 @@ Partner Benefits:
 As we are finalizing our agency partnership confirmation by Sunday, please let us know your availability for a brief call today or tomorrow to coordinate the next steps.
 
 Best regards,
-Yassin
+Yasen
++201128209072
 Global Entrepreneurship Festival (GEF) 2026
 Website: www.globalentrepreneurshipfestival.com`;
 
