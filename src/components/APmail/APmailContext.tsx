@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { EmailItem, UserSession, SendEmailPayload } from './types';
-import { INITIAL_EMAILS } from './demoData';
 import { playSendSound, playTrashSound, playUndoSound } from './soundEffects';
 
 interface ComposeData {
@@ -43,6 +42,7 @@ interface APmailContextType {
   // Actions
   login: (email: string, appPassword: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  syncMailbox: () => Promise<void>;
   setActiveFolder: (folder: string) => void;
   setActiveCategory: (cat: string) => void;
   setSearchQuery: (query: string) => void;
@@ -80,7 +80,13 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [user, setUser] = useState<UserSession | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SESSION);
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (!parsed.token) {
+        localStorage.removeItem(STORAGE_KEY_SESSION);
+        return null;
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -88,15 +94,16 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [emails, setEmails] = useState<EmailItem[]>(() => {
     try {
+      const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+      if (!savedSession) return [];
       const saved = localStorage.getItem(STORAGE_KEY_EMAILS);
-      return saved ? JSON.parse(saved) : INITIAL_EMAILS;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_EMAILS;
+      return [];
     }
   });
 
   const [activeFolder, setActiveFolderState] = useState<string>('INBOX');
-  // Default to 'all' so NO messages are hidden by category filters!
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [unreadOnly, setUnreadOnly] = useState<boolean>(false);
@@ -141,7 +148,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       localStorage.setItem(STORAGE_KEY_EMAILS, JSON.stringify(emails));
     } catch {
-      // quota or private mode
+      // ignore
     }
   }, [emails]);
 
@@ -171,10 +178,56 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setToast(msg);
     setTimeout(() => {
       setToast((curr) => (curr === msg ? null : curr));
-    }, 3000);
+    }, 3500);
   }, []);
 
   const toggleTheme = () => setIsDark((p) => !p);
+
+  // Real IMAP Fetch from Gmail
+  const fetchEmails = useCallback(
+    async (folder: string, tokenOverride?: string) => {
+      const token = tokenOverride || user?.token;
+      if (!token) return;
+
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/apmail/emails/list?folder=${encodeURIComponent(folder)}&limit=40`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.emails)) {
+          setEmails((prev) => {
+            const otherFolderEmails = prev.filter((e) => e.folder !== folder.toUpperCase());
+            return [...data.emails, ...otherFolderEmails];
+          });
+        } else if (data.error) {
+          showToast(data.error);
+        }
+      } catch (err) {
+        console.error('Failed to fetch Gmail mailbox:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [user?.token, showToast]
+  );
+
+  // Auto-fetch emails on mount or activeFolder change
+  useEffect(() => {
+    if (user?.token) {
+      fetchEmails(activeFolder);
+    }
+  }, [user?.token, activeFolder, fetchEmails]);
+
+  // Manual Sync
+  const syncMailbox = useCallback(async () => {
+    if (!user?.token) return;
+    showToast('Checking Gmail for new messages...');
+    await fetchEmails(activeFolder);
+    showToast('Mailbox synchronized with Gmail');
+  }, [user?.token, activeFolder, fetchEmails, showToast]);
 
   // Contextual Smart Replies
   const getSmartReplies = (email: EmailItem): string[] => {
@@ -216,7 +269,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsLoading(true);
     try {
       if (!email || !appPassword) {
-        return { success: false, error: 'Email and 16-character App Password required.' };
+        return { success: false, error: 'Gmail address and 16-character App Password are required.' };
       }
 
       const cleanPassword = appPassword.replace(/\s+/g, '');
@@ -224,35 +277,31 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return { success: false, error: 'App Password must be 16 characters.' };
       }
 
-      // Check backend API verification
-      try {
-        const res = await fetch('/api/apmail/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim(), appPassword: cleanPassword }),
-        });
-        const data = await res.json();
-        if (data.success && data.user) {
-          setUser(data.user);
-          showToast(`Connected to ${data.user.email}`);
-          return { success: true };
-        }
-      } catch {
-        // Fallback to direct client-side session
+      const res = await fetch('/api/apmail/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), appPassword: cleanPassword }),
+      });
+
+      const data = await res.json();
+      if (!data.success || !data.user) {
+        const errorMsg = data.error || 'Authentication with Gmail failed. Check your App Password.';
+        showToast(errorMsg);
+        return { success: false, error: errorMsg };
       }
 
-      const trimmedEmail = email.trim().toLowerCase();
-      const formattedName = trimmedEmail.split('@')[0];
-      const newUser: UserSession = {
-        email: trimmedEmail,
-        name: formattedName.charAt(0).toUpperCase() + formattedName.slice(1),
-        createdAt: Date.now(),
-      };
-      setUser(newUser);
-      showToast(`Connected to ${newUser.email}`);
+      // Clear any older dummy emails and set real session
+      setEmails([]);
+      setUser(data.user);
+      localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(data.user));
+      localStorage.removeItem(STORAGE_KEY_EMAILS);
+
+      showToast(`Connected to ${data.user.email}`);
+      await fetchEmails('INBOX', data.user.token);
       return { success: true };
     } catch (err: unknown) {
       const error = err as Error;
+      showToast(error.message);
       return { success: false, error: error.message };
     } finally {
       setIsLoading(false);
@@ -261,9 +310,12 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const logout = () => {
     setUser(null);
+    setEmails([]);
     setSelectedEmail(null);
     setCheckedIds([]);
-    showToast('Signed out');
+    localStorage.removeItem(STORAGE_KEY_SESSION);
+    localStorage.removeItem(STORAGE_KEY_EMAILS);
+    showToast('Signed out of Gmail');
   };
 
   const setActiveFolder = (folder: string) => {
@@ -275,58 +327,163 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const selectEmail = (item: EmailItem | null) => {
     setSelectedEmail(item);
-    if (item && !item.isRead) {
-      markAsRead(item.id, true);
+    if (item) {
+      if (!item.isRead) {
+        markAsRead(item.id, true);
+      }
+
+      // If full body is not loaded yet, fetch it on-demand from Gmail
+      if (!item.bodyHtml && item.uid && user?.token) {
+        fetch(`/api/apmail/emails/read?uid=${item.uid}&folder=${encodeURIComponent(item.folder || activeFolder)}`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success && data.email) {
+              setSelectedEmail((prev) =>
+                prev && prev.uid === item.uid ? { ...prev, ...data.email } : prev
+              );
+              setEmails((prev) =>
+                prev.map((m) => (m.uid === item.uid ? { ...m, ...data.email } : m))
+              );
+            }
+          })
+          .catch((err) => console.error('Failed to load email body:', err));
+      }
     }
   };
 
   const toggleStar = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    let newStarredState = false;
+    let targetUid: number | null = null;
+
     setEmails((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, isStarred: !m.isStarred } : m))
+      prev.map((m) => {
+        if (m.id === id) {
+          newStarredState = !m.isStarred;
+          targetUid = m.uid;
+          return { ...m, isStarred: newStarredState };
+        }
+        return m;
+      })
     );
+
     if (selectedEmail && selectedEmail.id === id) {
       setSelectedEmail((prev) => (prev ? { ...prev, isStarred: !prev.isStarred } : null));
+    }
+
+    if (targetUid && user?.token) {
+      fetch('/api/apmail/emails/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+        body: JSON.stringify({
+          action: newStarredState ? 'star' : 'unstar',
+          uids: [targetUid],
+          folder: activeFolder,
+        }),
+      }).catch(() => {});
     }
   };
 
   const markAsRead = (id: string, read: boolean) => {
+    let targetUid: number | null = null;
+
     setEmails((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, isRead: read } : m))
+      prev.map((m) => {
+        if (m.id === id) {
+          targetUid = m.uid;
+          return { ...m, isRead: read };
+        }
+        return m;
+      })
     );
+
     if (selectedEmail && selectedEmail.id === id) {
       setSelectedEmail((prev) => (prev ? { ...prev, isRead: read } : null));
+    }
+
+    if (targetUid && user?.token) {
+      fetch('/api/apmail/emails/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+        body: JSON.stringify({
+          action: read ? 'markRead' : 'markUnread',
+          uids: [targetUid],
+          folder: activeFolder,
+        }),
+      }).catch(() => {});
     }
   };
 
   const deleteEmail = (id: string) => {
     playTrashSound();
-    setEmails((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, folder: 'TRASH' } : m))
-    );
+    const target = emails.find((m) => m.id === id);
+
+    setEmails((prev) => prev.map((m) => (m.id === id ? { ...m, folder: 'TRASH' } : m)));
     if (selectedEmail && selectedEmail.id === id) {
       setSelectedEmail(null);
     }
     showToast('Moved to Trash');
+
+    if (target?.uid && user?.token) {
+      fetch('/api/apmail/emails/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+        body: JSON.stringify({
+          action: 'delete',
+          uids: [target.uid],
+          folder: activeFolder,
+        }),
+      }).catch(() => {});
+    }
   };
 
   const batchDelete = () => {
     if (checkedIds.length === 0) return;
     playTrashSound();
+    const targetUids = emails.filter((m) => checkedIds.includes(m.id)).map((m) => m.uid);
+
     setEmails((prev) =>
       prev.map((m) => (checkedIds.includes(m.id) ? { ...m, folder: 'TRASH' } : m))
     );
     setCheckedIds([]);
     showToast('Conversations moved to Trash');
+
+    if (targetUids.length > 0 && user?.token) {
+      fetch('/api/apmail/emails/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+        body: JSON.stringify({
+          action: 'delete',
+          uids: targetUids,
+          folder: activeFolder,
+        }),
+      }).catch(() => {});
+    }
   };
 
   const batchMarkRead = (read: boolean) => {
     if (checkedIds.length === 0) return;
+    const targetUids = emails.filter((m) => checkedIds.includes(m.id)).map((m) => m.uid);
+
     setEmails((prev) =>
       prev.map((m) => (checkedIds.includes(m.id) ? { ...m, isRead: read } : m))
     );
     setCheckedIds([]);
     showToast(read ? 'Marked as read' : 'Marked as unread');
+
+    if (targetUids.length > 0 && user?.token) {
+      fetch('/api/apmail/emails/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+        body: JSON.stringify({
+          action: read ? 'markRead' : 'markUnread',
+          uids: targetUids,
+          folder: activeFolder,
+        }),
+      }).catch(() => {});
+    }
   };
 
   const updateDraft = (data: Partial<ComposeData>) => {
@@ -353,36 +510,64 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsComposeOpen(false);
   };
 
-  // Commit the final email send to state and storage
-  const commitFinalSend = useCallback((payload: SendEmailPayload) => {
-    playSendSound();
-    const newSentEmail: EmailItem = {
-      id: `sent-${Date.now()}`,
-      uid: Math.floor(Math.random() * 90000) + 10000,
-      from: { name: user?.name || 'You', address: user?.email || 'user@gmail.com' },
-      to: [{ address: payload.to }],
-      subject: payload.subject,
-      snippet: payload.bodyText?.slice(0, 140) || payload.bodyHtml.replace(/<[^>]*>/g, '').slice(0, 140),
-      bodyHtml: payload.bodyHtml,
-      bodyText: payload.bodyText || payload.bodyHtml.replace(/<[^>]*>/g, ''),
-      date: new Date().toISOString(),
-      isRead: true,
-      isStarred: false,
-      folder: 'SENT',
-      hasAttachments: Boolean(payload.attachments && payload.attachments.length > 0),
-      attachments: payload.attachments?.map((a) => ({
-        filename: a.name,
-        contentType: 'application/octet-stream',
-        size: a.size,
-      })),
-    };
+  // Commit the final email send to Gmail SMTP
+  const commitFinalSend = useCallback(
+    async (payload: SendEmailPayload) => {
+      playSendSound();
 
-    setEmails((prev) => [newSentEmail, ...prev]);
-    localStorage.removeItem(STORAGE_KEY_DRAFT);
-    setComposeData({ to: '', subject: '', body: '', attachments: [] });
-    setPendingSend(null);
-    pendingPayloadRef.current = null;
-  }, [user]);
+      if (user?.token) {
+        try {
+          const res = await fetch('/api/apmail/emails/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${user.token}`,
+            },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast('Email delivered successfully via Gmail SMTP!');
+          } else {
+            showToast(`Send error: ${data.error || 'Failed to send'}`);
+          }
+        } catch (err: unknown) {
+          const error = err as Error;
+          showToast(`Send failed: ${error.message}`);
+        }
+      }
+
+      const newSentEmail: EmailItem = {
+        id: `sent-${Date.now()}`,
+        uid: Math.floor(Math.random() * 90000) + 10000,
+        from: { name: user?.name || 'You', address: user?.email || 'me@gmail.com' },
+        to: [{ address: payload.to }],
+        subject: payload.subject,
+        snippet:
+          payload.bodyText?.slice(0, 140) ||
+          payload.bodyHtml.replace(/<[^>]*>/g, '').slice(0, 140),
+        bodyHtml: payload.bodyHtml,
+        bodyText: payload.bodyText || payload.bodyHtml.replace(/<[^>]*>/g, ''),
+        date: new Date().toISOString(),
+        isRead: true,
+        isStarred: false,
+        folder: 'SENT',
+        hasAttachments: Boolean(payload.attachments && payload.attachments.length > 0),
+        attachments: payload.attachments?.map((a) => ({
+          filename: a.name,
+          contentType: 'application/octet-stream',
+          size: a.size,
+        })),
+      };
+
+      setEmails((prev) => [newSentEmail, ...prev]);
+      localStorage.removeItem(STORAGE_KEY_DRAFT);
+      setComposeData({ to: '', subject: '', body: '', attachments: [] });
+      setPendingSend(null);
+      pendingPayloadRef.current = null;
+    },
+    [user, showToast]
+  );
 
   // Send Email with 5s Undo Window
   const sendEmail = async (payload: SendEmailPayload) => {
@@ -439,10 +624,34 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ? selectedEmail.subject
       : `Re: ${selectedEmail.subject}`;
 
+    if (user?.token) {
+      fetch('/api/apmail/emails/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          to: selectedEmail.from.address,
+          subject: replySubject,
+          bodyHtml: `<div><p>${replyText.replace(/\n/g, '<br>')}</p></div>`,
+          bodyText: replyText,
+          inReplyTo: selectedEmail.id,
+        }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) {
+            showToast('Reply dispatched via Gmail');
+          }
+        })
+        .catch(() => {});
+    }
+
     const newSent: EmailItem = {
       id: `reply-${Date.now()}`,
       uid: Math.floor(Math.random() * 90000) + 10000,
-      from: { name: user?.name || 'You', address: user?.email || 'user@gmail.com' },
+      from: { name: user?.name || 'You', address: user?.email || 'me@gmail.com' },
       to: [selectedEmail.from],
       subject: replySubject,
       snippet: replyText.slice(0, 140),
@@ -506,9 +715,13 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const matchSnippet = mail.snippet.toLowerCase().includes(q);
       const matchBody = (mail.bodyText || '').toLowerCase().includes(q);
       const matchSender =
-        (mail.from.name || '').toLowerCase().includes(q) || mail.from.address.toLowerCase().includes(q);
-      const matchAttachments = mail.attachments?.some((a) => a.filename.toLowerCase().includes(q));
-      if (!matchSubj && !matchSnippet && !matchBody && !matchSender && !matchAttachments) return false;
+        (mail.from.name || '').toLowerCase().includes(q) ||
+        mail.from.address.toLowerCase().includes(q);
+      const matchAttachments = mail.attachments?.some((a) =>
+        a.filename.toLowerCase().includes(q)
+      );
+      if (!matchSubj && !matchSnippet && !matchBody && !matchSender && !matchAttachments)
+        return false;
     }
 
     return true;
@@ -557,6 +770,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         pendingSend,
         login,
         logout,
+        syncMailbox,
         setActiveFolder,
         setActiveCategory,
         setSearchQuery,

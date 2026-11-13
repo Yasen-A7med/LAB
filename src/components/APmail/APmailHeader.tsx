@@ -34,6 +34,7 @@ export const APmailHeader: React.FC<Props> = ({ onBack, onToggleSidebar }) => {
     hasAttachmentOnly,
     setHasAttachmentOnly,
     showToast,
+    syncMailbox,
   } = useAPmail();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -58,12 +59,15 @@ export const APmailHeader: React.FC<Props> = ({ onBack, onToggleSidebar }) => {
     }
   }, [isMobileSearchOpen]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
+    try {
+      await syncMailbox();
+    } catch {
+      showToast('Could not refresh mailbox');
+    } finally {
       setIsRefreshing(false);
-      showToast('Mailbox up to date');
-    }, 800);
+    }
   };
 
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'U';

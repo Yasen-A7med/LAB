@@ -10,6 +10,7 @@ import {
   Send,
   Sparkles,
   Paperclip,
+  Loader2,
 } from 'lucide-react';
 
 export const APmailView: React.FC = () => {
@@ -172,11 +173,16 @@ export const APmailView: React.FC = () => {
         <div className="text-xs sm:text-sm text-gray-800 dark:text-gray-200 leading-relaxed space-y-3 pt-1">
           {email.bodyHtml ? (
             <div
-              className="prose dark:prose-invert max-w-none text-xs sm:text-sm"
+              className="prose dark:prose-invert max-w-none text-xs sm:text-sm overflow-x-auto"
               dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
             />
-          ) : (
+          ) : email.bodyText ? (
             <p className="whitespace-pre-wrap">{email.bodyText}</p>
+          ) : (
+            <div className="py-8 flex flex-col items-center justify-center text-gray-400 gap-2">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+              <p className="text-xs">Loading email content from Gmail...</p>
+            </div>
           )}
         </div>
 

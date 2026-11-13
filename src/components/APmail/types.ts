@@ -38,6 +38,7 @@ export interface UserSession {
   email: string;
   name: string;
   createdAt: number;
+  token?: string;
 }
 
 export interface SendEmailPayload {

@@ -14,11 +14,13 @@ import {
   CheckSquare,
   Square,
   MinusSquare,
+  Loader2,
 } from 'lucide-react';
 
 export const APmailList: React.FC = () => {
   const {
     filteredEmails,
+    isLoading,
     activeFolder,
     activeCategory,
     setActiveCategory,
@@ -198,7 +200,13 @@ export const APmailList: React.FC = () => {
 
       {/* List items Container */}
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800/50">
-        {filteredEmails.length === 0 ? (
+        {isLoading && filteredEmails.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-400">
+            <Loader2 className="w-8 h-8 mb-3 animate-spin text-blue-600 dark:text-blue-400" />
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Connecting to Gmail...</p>
+            <p className="text-[11px] text-gray-400 mt-1">Fetching your real messages via IMAP</p>
+          </div>
+        ) : filteredEmails.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-400">
             <Inbox className="w-10 h-10 mb-2 stroke-1" />
             <p className="text-xs font-medium">No messages found in this view</p>
