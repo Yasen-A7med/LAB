@@ -172,6 +172,7 @@ export default async function handler(req, res) {
       await client.connect();
       const lock = await client.getMailboxLock(mailboxPath);
       const emails = [];
+      let total = 0;
 
       try {
         const searchQuery = (req.query.q || req.body?.q || '').trim();
@@ -190,7 +191,7 @@ export default async function handler(req, res) {
           uids = await client.search({ all: true }, { uid: true });
         }
 
-        const total = uids.length;
+        total = Array.isArray(uids) ? uids.length : 0;
 
         if (total > 0) {
           const endIndex = total - (page - 1) * limit;
