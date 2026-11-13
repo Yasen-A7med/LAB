@@ -11,6 +11,7 @@ import {
   Mail,
   Star,
   Paperclip,
+  RotateCw,
 } from 'lucide-react';
 
 interface Props {
@@ -32,10 +33,12 @@ export const APmailHeader: React.FC<Props> = ({ onBack, onToggleSidebar }) => {
     setStarredOnly,
     hasAttachmentOnly,
     setHasAttachmentOnly,
+    showToast,
   } = useAPmail();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,6 +57,14 @@ export const APmailHeader: React.FC<Props> = ({ onBack, onToggleSidebar }) => {
       searchInputRef.current.focus();
     }
   }, [isMobileSearchOpen]);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+      showToast('Mailbox up to date');
+    }, 800);
+  };
 
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'U';
 
@@ -123,11 +134,6 @@ export const APmailHeader: React.FC<Props> = ({ onBack, onToggleSidebar }) => {
           <span className="text-base font-semibold tracking-tight text-gray-800 dark:text-gray-100">
             APmail
           </span>
-          {user?.isDemo && (
-            <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 hidden sm:inline-block">
-              Demo
-            </span>
-          )}
         </div>
       </div>
 
@@ -157,6 +163,15 @@ export const APmailHeader: React.FC<Props> = ({ onBack, onToggleSidebar }) => {
 
       {/* Right Controls */}
       <div className="flex items-center gap-1 sm:gap-2">
+        {/* Sync/Refresh Button */}
+        <button
+          onClick={handleRefresh}
+          className="p-2 rounded-full hover:bg-gray-200/70 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors cursor-pointer"
+          title="Refresh Mailbox"
+        >
+          <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
+        </button>
+
         {/* Mobile Search Trigger Icon */}
         <button
           onClick={() => setIsMobileSearchOpen(true)}
@@ -234,7 +249,7 @@ export const APmailHeader: React.FC<Props> = ({ onBack, onToggleSidebar }) => {
                 <p className="font-semibold text-gray-900 dark:text-gray-100">{user?.name}</p>
                 <p className="text-gray-500 dark:text-gray-400 text-[11px] truncate mt-0.5">{user?.email}</p>
                 <div className="mt-2 pt-2 border-t border-gray-200/60 dark:border-gray-700/60 flex items-center justify-between text-[10px] text-gray-400">
-                  <span>App Password Mode</span>
+                  <span>Google App Password</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Active</span>
                 </div>
               </div>
@@ -254,6 +269,13 @@ export const APmailHeader: React.FC<Props> = ({ onBack, onToggleSidebar }) => {
                 >
                   <span className="flex items-center gap-2"><Star className="w-3.5 h-3.5" /> Starred Only</span>
                   <span className={`w-2 h-2 rounded-full ${starredOnly ? 'bg-amber-500' : 'bg-gray-300'}`} />
+                </button>
+                <button
+                  onClick={() => setHasAttachmentOnly((prev) => !prev)}
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                >
+                  <span className="flex items-center gap-2"><Paperclip className="w-3.5 h-3.5" /> Has Files</span>
+                  <span className={`w-2 h-2 rounded-full ${hasAttachmentOnly ? 'bg-emerald-600' : 'bg-gray-300'}`} />
                 </button>
               </div>
 

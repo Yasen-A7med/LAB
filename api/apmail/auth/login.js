@@ -12,20 +12,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, appPassword, isDemo } = req.body || {};
-
-    if (isDemo) {
-      const demoUser = {
-        email: 'alex.developer@gmail.com',
-        name: 'Alex Developer',
-        isDemo: true,
-        createdAt: Date.now(),
-      };
-      return res.status(200).json({ success: true, user: demoUser });
-    }
+    const { email, appPassword } = req.body || {};
 
     if (!email || !appPassword) {
-      return res.status(400).json({ success: false, error: 'Email and App Password required' });
+      return res.status(400).json({ success: false, error: 'Email and 16-character App Password required' });
     }
 
     const trimmedEmail = email.trim().toLowerCase();
@@ -34,7 +24,6 @@ export default async function handler(req, res) {
     const user = {
       email: trimmedEmail,
       name: formattedName.charAt(0).toUpperCase() + formattedName.slice(1),
-      isDemo: false,
       createdAt: Date.now(),
     };
 

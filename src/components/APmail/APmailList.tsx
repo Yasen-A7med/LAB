@@ -22,6 +22,7 @@ export const APmailList: React.FC = () => {
     activeFolder,
     activeCategory,
     setActiveCategory,
+    categoryCounts,
     selectEmail,
     toggleStar,
     deleteEmail,
@@ -44,6 +45,7 @@ export const APmailList: React.FC = () => {
   const isPartiallyChecked = checkedIds.length > 0 && checkedIds.length < filteredEmails.length;
 
   const categories = [
+    { id: 'all', name: 'All Mail', icon: Mail, color: 'text-blue-600 dark:text-blue-400 border-blue-600' },
     { id: 'primary', name: 'Primary', icon: Inbox, color: 'text-blue-600 dark:text-blue-400 border-blue-600' },
     { id: 'promotions', name: 'Promotions', icon: Tag, color: 'text-emerald-600 dark:text-emerald-400 border-emerald-600' },
     { id: 'social', name: 'Social', icon: Users, color: 'text-sky-600 dark:text-sky-400 border-sky-600' },
@@ -63,7 +65,6 @@ export const APmailList: React.FC = () => {
     }
   };
 
-  // Avatar color generator based on sender name
   const getAvatarColor = (name: string) => {
     const colors = [
       'bg-blue-600 text-white',
@@ -81,7 +82,6 @@ export const APmailList: React.FC = () => {
     return colors[Math.abs(hash) % colors.length];
   };
 
-  // Touch Swipe handlers
   const handleTouchStart = (e: React.TouchEvent, id: string) => {
     setTouchStartX(e.touches[0].clientX);
     setSwipingId(id);
@@ -92,7 +92,6 @@ export const APmailList: React.FC = () => {
     if (touchStartX === null) return;
     const currentX = e.touches[0].clientX;
     const diff = currentX - touchStartX;
-    // Limit swipe boundary
     if (Math.abs(diff) < 140) {
       setSwipeOffset(diff);
     }
@@ -100,10 +99,8 @@ export const APmailList: React.FC = () => {
 
   const handleTouchEnd = (mail: EmailItem) => {
     if (swipeOffset < -70) {
-      // Swiped Left -> Delete
       deleteEmail(mail.id);
     } else if (swipeOffset > 70) {
-      // Swiped Right -> Toggle Read/Unread
       markAsRead(mail.id, !mail.isRead);
     }
     setTouchStartX(null);
@@ -168,18 +165,19 @@ export const APmailList: React.FC = () => {
         </div>
       </div>
 
-      {/* Category Tabs (Inbox Only) */}
+      {/* Category Tabs (Inbox Only): Shows All Mail + Specific Categories */}
       {activeFolder === 'INBOX' && (
         <div className="flex items-center border-b border-gray-100 dark:border-gray-800 overflow-x-auto scrollbar-none">
           {categories.map((cat) => {
             const Icon = cat.icon;
             const isCurrent = activeCategory === cat.id;
+            const count = categoryCounts[cat.id] ?? 0;
 
             return (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex-1 min-w-[90px] sm:min-w-[110px] py-2 px-2 sm:px-3 flex items-center justify-center gap-1.5 border-b-2 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex-1 min-w-[85px] sm:min-w-[110px] py-2 px-2 sm:px-3 flex items-center justify-center gap-1.5 border-b-2 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                   isCurrent
                     ? `${cat.color} font-semibold bg-blue-50/20 dark:bg-blue-900/10`
                     : 'border-transparent text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800/40'
@@ -187,6 +185,11 @@ export const APmailList: React.FC = () => {
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span>{cat.name}</span>
+                {count > 0 && (
+                  <span className={`text-[10px] px-1 rounded-full ${isCurrent ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-gray-400'}`}>
+                    {count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -284,7 +287,6 @@ export const APmailList: React.FC = () => {
 
                   {/* MOBILE 3-TIER CARD VIEW (< md screens) */}
                   <div className="flex md:hidden items-start w-full gap-2.5 py-0.5 min-w-0">
-                    {/* Mobile Round Avatar with Initial */}
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
@@ -299,9 +301,7 @@ export const APmailList: React.FC = () => {
                       {isChecked ? '✓' : initial}
                     </div>
 
-                    {/* 3-Tier Content Stack */}
                     <div className="flex-1 min-w-0">
-                      {/* Tier 1: Sender Name & Date */}
                       <div className="flex items-center justify-between gap-1 leading-tight">
                         <span
                           className={`truncate text-xs ${
@@ -323,7 +323,6 @@ export const APmailList: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Tier 2: Subject */}
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <p
                           className={`truncate text-[11px] leading-tight ${
@@ -339,7 +338,6 @@ export const APmailList: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Tier 3: Snippet & Star */}
                       <div className="flex items-center justify-between gap-2 mt-0.5">
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 truncate">
                           {mail.snippet}
@@ -362,7 +360,6 @@ export const APmailList: React.FC = () => {
 
                   {/* DESKTOP SINGLE-ROW VIEW (>= md screens) */}
                   <div className="hidden md:flex items-center flex-1 min-w-0">
-                    {/* Sender */}
                     <div
                       className={`w-40 lg:w-48 truncate shrink-0 pr-2 ${
                         mail.isRead
@@ -373,7 +370,6 @@ export const APmailList: React.FC = () => {
                       {senderName}
                     </div>
 
-                    {/* Subject & Snippet */}
                     <div className="flex-1 flex items-center truncate min-w-0 pr-3">
                       <span
                         className={`truncate ${
@@ -395,7 +391,6 @@ export const APmailList: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Date */}
                     <div
                       className={`w-16 text-right text-[11px] shrink-0 whitespace-nowrap transition-opacity group-hover:opacity-0 ${
                         mail.isRead
@@ -406,7 +401,6 @@ export const APmailList: React.FC = () => {
                       {formatShortDate(mail.date)}
                     </div>
 
-                    {/* Quick Hover Actions (Desktop) */}
                     <div className="absolute right-3 hidden group-hover:flex items-center gap-1 bg-inherit pl-2">
                       <button
                         onClick={(e) => {

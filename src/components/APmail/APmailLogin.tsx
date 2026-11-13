@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAPmail } from './APmailContext';
-import { Mail, Key, Eye, EyeOff, Sparkles, ArrowRight, Loader2, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Mail, Key, Eye, EyeOff, ArrowRight, Loader2, ArrowLeft, ExternalLink } from 'lucide-react';
 
 interface Props {
   onBack?: () => void;
@@ -18,18 +18,13 @@ export const APmailLogin: React.FC<Props> = ({ onBack }) => {
     e.preventDefault();
     setError(null);
     if (!email.trim() || !appPassword.trim()) {
-      setError('Enter your Gmail and 16-character App Password');
+      setError('Enter your Gmail address and 16-character App Password');
       return;
     }
-    const res = await login(email.trim(), appPassword.trim(), false);
+    const res = await login(email.trim(), appPassword.trim());
     if (!res.success) {
       setError(res.error || 'Authentication failed');
     }
-  };
-
-  const handleDemo = async () => {
-    setError(null);
-    await login(undefined, undefined, true);
   };
 
   return (
@@ -58,7 +53,7 @@ export const APmailLogin: React.FC<Props> = ({ onBack }) => {
             </div>
             <h1 className="text-xl font-semibold tracking-tight">APmail</h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Sign in with Google App Password
+              Sign in with your Google App Password
             </p>
           </div>
 
@@ -77,7 +72,7 @@ export const APmailLogin: React.FC<Props> = ({ onBack }) => {
                 <input
                   type="email"
                   required
-                  placeholder="name@gmail.com"
+                  placeholder="yourname@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-gray-50 dark:bg-[#22242a] border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
@@ -133,25 +128,6 @@ export const APmailLogin: React.FC<Props> = ({ onBack }) => {
               )}
             </button>
           </form>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-100 dark:border-gray-800" />
-            </div>
-            <div className="relative flex justify-center text-[10px] uppercase">
-              <span className="bg-white dark:bg-[#181a20] px-2 text-gray-400">or</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleDemo}
-            disabled={isLoading}
-            className="w-full py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium text-xs rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-gray-200/60 dark:border-gray-700"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Instant Demo Mode</span>
-          </button>
         </div>
       </div>
 
@@ -169,11 +145,11 @@ export const APmailLogin: React.FC<Props> = ({ onBack }) => {
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">2</span>
-                <span>Enter an app name (e.g. <strong>APmail</strong>) and click <strong>Create</strong>.</span>
+                <span>Enter app name (e.g. <strong>APmail</strong>) and click <strong>Create</strong>.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-green-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">3</span>
-                <span>Paste the 16-character code into APmail.</span>
+                <span>Copy the 16-letter code into APmail.</span>
               </li>
             </ol>
 

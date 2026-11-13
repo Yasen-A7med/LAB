@@ -37,7 +37,6 @@ export interface EmailItem {
 export interface UserSession {
   email: string;
   name: string;
-  isDemo: boolean;
   createdAt: number;
 }
 

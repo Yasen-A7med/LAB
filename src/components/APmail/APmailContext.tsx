@@ -31,6 +31,7 @@ interface APmailContextType {
   selectedEmail: EmailItem | null;
   checkedIds: string[];
   unreadCounts: Record<string, number>;
+  categoryCounts: Record<string, number>;
   isLoading: boolean;
   isComposeOpen: boolean;
   composeMode: 'docked' | 'maximized' | 'minimized';
@@ -40,7 +41,7 @@ interface APmailContextType {
   pendingSend: PendingSend | null;
 
   // Actions
-  login: (email?: string, appPassword?: string, isDemo?: boolean) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, appPassword: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   setActiveFolder: (folder: string) => void;
   setActiveCategory: (cat: string) => void;
@@ -95,7 +96,8 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   const [activeFolder, setActiveFolderState] = useState<string>('INBOX');
-  const [activeCategory, setActiveCategory] = useState<string>('primary');
+  // Default to 'all' so NO messages are hidden by category filters!
+  const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [unreadOnly, setUnreadOnly] = useState<boolean>(false);
   const [starredOnly, setStarredOnly] = useState<boolean>(false);
@@ -157,7 +159,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem(STORAGE_KEY_THEME, String(isDark));
   }, [isDark]);
 
-  // Dynamic document title with unread badge e.g. "APmail (2)"
+  // Dynamic document title with unread badge e.g. "APmail (3)"
   const unreadInboxCount = emails.filter((e) => e.folder === 'INBOX' && !e.isRead).length;
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -193,7 +195,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         'Left a few quick notes on the PR.',
       ];
     }
-    if (text.includes('invoice') || text.includes('payment') || text.includes('receipt') || text.includes('bill')) {
+    if (text.includes('invoice') || text.includes('payment') || text.includes('receipt') || text.includes('bill') || text.includes('payout')) {
       return [
         'Received and forwarded to accounting.',
         'Payment processed successfully.',
@@ -209,31 +211,25 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ];
   };
 
-  // Login handler
-  const login = async (email?: string, appPassword?: string, isDemo?: boolean) => {
+  // Authentic Login with Google App Password
+  const login = async (email: string, appPassword: string) => {
     setIsLoading(true);
     try {
-      if (isDemo) {
-        const demoUser: UserSession = {
-          email: 'alex.developer@gmail.com',
-          name: 'Alex Developer',
-          isDemo: true,
-          createdAt: Date.now(),
-        };
-        setUser(demoUser);
-        showToast('Demo Account Connected');
-        return { success: true };
-      }
-
       if (!email || !appPassword) {
-        return { success: false, error: 'Email and App Password required.' };
+        return { success: false, error: 'Email and 16-character App Password required.' };
       }
 
+      const cleanPassword = appPassword.replace(/\s+/g, '');
+      if (cleanPassword.length < 8) {
+        return { success: false, error: 'App Password must be 16 characters.' };
+      }
+
+      // Check backend API verification
       try {
         const res = await fetch('/api/apmail/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim(), appPassword: appPassword.trim() }),
+          body: JSON.stringify({ email: email.trim(), appPassword: cleanPassword }),
         });
         const data = await res.json();
         if (data.success && data.user) {
@@ -245,11 +241,11 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Fallback to direct client-side session
       }
 
-      const formattedName = email.split('@')[0];
+      const trimmedEmail = email.trim().toLowerCase();
+      const formattedName = trimmedEmail.split('@')[0];
       const newUser: UserSession = {
-        email: email.trim().toLowerCase(),
+        email: trimmedEmail,
         name: formattedName.charAt(0).toUpperCase() + formattedName.slice(1),
-        isDemo: false,
         createdAt: Date.now(),
       };
       setUser(newUser);
@@ -272,6 +268,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const setActiveFolder = (folder: string) => {
     setActiveFolderState(folder);
+    setActiveCategory('all');
     setSelectedEmail(null);
     setCheckedIds([]);
   };
@@ -389,7 +386,6 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Send Email with 5s Undo Window
   const sendEmail = async (payload: SendEmailPayload) => {
-    // Clear any previous timer
     if (pendingSendTimerRef.current) clearTimeout(pendingSendTimerRef.current);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
@@ -397,7 +393,6 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setPendingSend({ payload, countdown: 5 });
     closeCompose();
 
-    // Start 1-second interval for visible countdown
     countdownIntervalRef.current = setInterval(() => {
       setPendingSend((curr) => {
         if (!curr || curr.countdown <= 1) return null;
@@ -405,7 +400,6 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     }, 1000);
 
-    // After 5s, commit send
     pendingSendTimerRef.current = setTimeout(() => {
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       if (pendingPayloadRef.current) {
@@ -416,7 +410,6 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return true;
   };
 
-  // Undo Send Action
   const undoSend = () => {
     if (pendingSendTimerRef.current) clearTimeout(pendingSendTimerRef.current);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -438,7 +431,6 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast('Sending undone — draft restored');
   };
 
-  // Instant Inline Quick Reply
   const quickReply = async (replyText: string) => {
     if (!selectedEmail || !replyText.trim()) return false;
     playSendSound();
@@ -483,7 +475,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Filtered emails based on folder, category, search, and filter chips
+  // Filtered emails: Show ALL messages by default (activeCategory === 'all')
   const filteredEmails = emails.filter((mail) => {
     if (activeFolder === 'STARRED') {
       if (!mail.isStarred || mail.folder === 'TRASH') return false;
@@ -491,8 +483,9 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return false;
     }
 
+    // Only filter by category if activeFolder is INBOX and category is NOT 'all'
     if (activeFolder === 'INBOX' && activeCategory !== 'all') {
-      if (mail.category && mail.category !== activeCategory) return false;
+      if (mail.category !== activeCategory) return false;
     }
 
     if (unreadOnly && mail.isRead) {
@@ -511,9 +504,11 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const q = searchQuery.trim().toLowerCase();
       const matchSubj = mail.subject.toLowerCase().includes(q);
       const matchSnippet = mail.snippet.toLowerCase().includes(q);
+      const matchBody = (mail.bodyText || '').toLowerCase().includes(q);
       const matchSender =
-        mail.from.name?.toLowerCase().includes(q) || mail.from.address.toLowerCase().includes(q);
-      if (!matchSubj && !matchSnippet && !matchSender) return false;
+        (mail.from.name || '').toLowerCase().includes(q) || mail.from.address.toLowerCase().includes(q);
+      const matchAttachments = mail.attachments?.some((a) => a.filename.toLowerCase().includes(q));
+      if (!matchSubj && !matchSnippet && !matchBody && !matchSender && !matchAttachments) return false;
     }
 
     return true;
@@ -526,6 +521,15 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     SENT: 0,
     DRAFTS: emails.filter((e) => e.folder === 'DRAFTS').length,
     TRASH: 0,
+  };
+
+  // Category counts in Inbox
+  const categoryCounts: Record<string, number> = {
+    all: emails.filter((e) => e.folder === 'INBOX').length,
+    primary: emails.filter((e) => e.folder === 'INBOX' && e.category === 'primary').length,
+    promotions: emails.filter((e) => e.folder === 'INBOX' && e.category === 'promotions').length,
+    social: emails.filter((e) => e.folder === 'INBOX' && e.category === 'social').length,
+    updates: emails.filter((e) => e.folder === 'INBOX' && e.category === 'updates').length,
   };
 
   return (
@@ -543,6 +547,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         selectedEmail,
         checkedIds,
         unreadCounts,
+        categoryCounts,
         isLoading,
         isComposeOpen,
         composeMode,
