@@ -54,6 +54,8 @@ export function useNavigation(): UseNavigationReturn {
       navigate('yashoo-es');
     } else if (id === 'quiz' || id === 'compass') {
       navigate('quiz');
+    } else if (id === 'apmail' || id === 'mail' || id === 'gmail') {
+      navigate('apmail');
     }
   }, [navigate]);
 

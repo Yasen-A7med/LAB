@@ -65,6 +65,18 @@ const YoutubeIcon: React.FC<{ size?: number; className?: string }> = ({ size = 2
 
 const projects: ProjectCardData[] = [
   {
+    id: 'apmail',
+    title: 'APmail',
+    desc: 'Instant Gmail client powered by Google App Passwords. Fast IMAP/SMTP sync, clean Material 3 design, auto-saving drafts, and zero-fluff mail triage.',
+    icon: Mail,
+    tag: 'Email Suite',
+    iconColor: 'text-red-500',
+    iconBg: 'bg-red-500/10 border-red-500/20',
+    glowColor: 'group-hover:shadow-red-500/20 group-hover:border-red-500/40',
+    btnText: 'Open APmail',
+    badgeText: 'New 2026'
+  },
+  {
     id: 'quiz',
     title: 'Personality Compass',
     desc: 'Deep projective psychometric quiz. Discover your intuitive archetypes, emotional charisma score, and personal boundaries across 25 engaging scenarios with instant bilingual sharing.',

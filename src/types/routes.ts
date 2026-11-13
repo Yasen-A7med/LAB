@@ -13,6 +13,7 @@ export type AppView =
   | 'ca'
   | 'yashoo-es'
   | 'quiz'
+  | 'apmail'
   | 'redirect';
 
 export const ROUTES: Record<string, AppView> = {
@@ -31,6 +32,9 @@ export const ROUTES: Record<string, AppView> = {
   '/os': 'yashoo-es',
   '/quiz': 'quiz',
   '/compass': 'quiz',
+  '/apmail': 'apmail',
+  '/mail': 'apmail',
+  '/gmail': 'apmail',
 } as const;
 
 export function getViewFromPath(pathname: string): AppView {
@@ -50,6 +54,7 @@ export function getPathFromView(view: AppView): string {
     case 'ca': return '/ca';
     case 'yashoo-es': return '/yashoo-es';
     case 'quiz': return '/quiz';
+    case 'apmail': return '/apmail';
     case 'redirect': return '/r';
     case 'dashboard':
     default:
