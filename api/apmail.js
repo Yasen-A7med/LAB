@@ -6,7 +6,7 @@ import {
   getImapClient,
   getSmtpTransporter,
   mapFolderToGmail
-} from './_helper.js';
+} from './_apmail_helper.js';
 
 function inferCategory(msg) {
   const from = (msg.envelope?.from?.[0]?.address || '').toLowerCase();
@@ -67,12 +67,14 @@ export default async function handler(req, res) {
   }
 
   const url = req.url || '';
+  const pathParam = String(req.query.path || '');
   const cleanUrl = url.split('?')[0];
+  const target = (pathParam || cleanUrl).toLowerCase();
 
   // ==========================================
   // 1. AUTH / LOGIN
   // ==========================================
-  if (cleanUrl.endsWith('/auth/login') || cleanUrl.endsWith('/login')) {
+  if (target.includes('login')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
@@ -132,7 +134,7 @@ export default async function handler(req, res) {
   // ==========================================
   // 2. AUTH / ME
   // ==========================================
-  if (cleanUrl.endsWith('/auth/me') || cleanUrl.endsWith('/me')) {
+  if (target.includes('me')) {
     const credentials = getCredentialsFromReq(req);
     if (!credentials) {
       return res.status(200).json({ authenticated: false, user: null });
@@ -150,7 +152,7 @@ export default async function handler(req, res) {
   // ==========================================
   // 3. EMAILS / LIST
   // ==========================================
-  if (cleanUrl.endsWith('/emails/list') || cleanUrl.endsWith('/list')) {
+  if (target.includes('list')) {
     const credentials = getCredentialsFromReq(req);
     if (!credentials) {
       return res.status(401).json({
@@ -190,7 +192,7 @@ export default async function handler(req, res) {
         const total = uids.length;
 
         if (total > 0) {
-          // Slice the latest `limit` UIDs (ascending array, so latest are at the end)
+          // Slice latest UIDs (ascending array, so latest are at the end)
           const targetUids = uids.slice(-limit);
           const range = targetUids.join(',');
 
@@ -284,7 +286,7 @@ export default async function handler(req, res) {
   // ==========================================
   // 4. EMAILS / READ
   // ==========================================
-  if (cleanUrl.endsWith('/emails/read') || cleanUrl.endsWith('/read')) {
+  if (target.includes('read')) {
     const credentials = getCredentialsFromReq(req);
     if (!credentials) {
       return res.status(401).json({ success: false, error: 'Not authenticated.' });
@@ -357,7 +359,7 @@ export default async function handler(req, res) {
   // ==========================================
   // 5. EMAILS / SEND
   // ==========================================
-  if (cleanUrl.endsWith('/emails/send') || cleanUrl.endsWith('/send')) {
+  if (target.includes('send')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
@@ -409,7 +411,7 @@ export default async function handler(req, res) {
   // ==========================================
   // 6. EMAILS / ACTION (Mark Read, Star, Trash)
   // ==========================================
-  if (cleanUrl.endsWith('/emails/action') || cleanUrl.endsWith('/action')) {
+  if (target.includes('action')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
@@ -468,7 +470,7 @@ export default async function handler(req, res) {
   // ==========================================
   // 7. EMAILS / ATTACHMENT
   // ==========================================
-  if (cleanUrl.endsWith('/emails/attachment') || cleanUrl.endsWith('/attachment')) {
+  if (target.includes('attachment')) {
     const credentials = getCredentialsFromReq(req);
     if (!credentials) {
       return res.status(401).json({ success: false, error: 'Not authenticated.' });
@@ -523,5 +525,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(404).json({ success: false, error: 'Endpoint not found' });
+  return res.status(404).json({ success: false, error: `Endpoint not found: ${target}` });
 }

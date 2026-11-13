@@ -8,6 +8,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/apmail/(.*)",
+      "destination": "/api/apmail?path=$1"
+    },
+    {
       "source": "/uv/service/(.*)",
       "destination": "/index.html"
     },

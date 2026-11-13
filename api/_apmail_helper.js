@@ -38,9 +38,13 @@ export function getCredentialsFromReq(req) {
     if (creds?.email && creds?.appPassword) return creds;
   }
 
-  // Fallback to body or cookies
+  // Fallback to body or query
   if (req.body?.token) {
     const creds = decryptAuth(req.body.token);
+    if (creds?.email && creds?.appPassword) return creds;
+  }
+  if (req.query?.token) {
+    const creds = decryptAuth(req.query.token);
     if (creds?.email && creds?.appPassword) return creds;
   }
   if (req.body?.email && req.body?.appPassword) {
