@@ -390,7 +390,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ success: false, error: 'Not authenticated.' });
     }
 
-    const { to, cc, bcc, subject, bodyHtml, bodyText, inReplyTo } = req.body || {};
+    const { to, cc, bcc, subject, bodyHtml, bodyText, inReplyTo, attachments } = req.body || {};
 
     if (!to || !subject) {
       return res.status(400).json({ success: false, error: 'Recipient and Subject are required.' });
@@ -399,6 +399,8 @@ export default async function handler(req, res) {
     const transporter = getSmtpTransporter(credentials);
 
     try {
+      const cleanPlain = (bodyText || '').trim() || (bodyHtml ? bodyHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : '');
+
       const mailOptions = {
         from: `"${credentials.email.split('@')[0]}" <${credentials.email}>`,
         to,
@@ -406,12 +408,25 @@ export default async function handler(req, res) {
         bcc: bcc || undefined,
         subject,
         html: bodyHtml || `<p>${(bodyText || '').replace(/\n/g, '<br>')}</p>`,
-        text: bodyText || bodyHtml.replace(/<[^>]*>/g, '')
+        text: cleanPlain
       };
 
       if (inReplyTo) {
         mailOptions.inReplyTo = inReplyTo;
         mailOptions.references = inReplyTo;
+      }
+
+      if (Array.isArray(attachments) && attachments.length > 0) {
+        mailOptions.attachments = attachments
+          .filter((att) => att && (att.name || att.filename) && (att.content || att.data))
+          .map((att) => {
+            const rawContent = att.content || att.data;
+            return {
+              filename: att.name || att.filename,
+              content: att.isBase64 ? Buffer.from(rawContent, 'base64') : rawContent,
+              contentType: att.contentType || undefined
+            };
+          });
       }
 
       const info = await transporter.sendMail(mailOptions);

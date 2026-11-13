@@ -8,8 +8,16 @@ interface ComposeData {
   bcc?: string;
   subject: string;
   body: string;
+  bodyHtml?: string;
+  composeType?: 'text' | 'html';
   inReplyTo?: string;
-  attachments?: { name: string; size: number }[];
+  attachments?: {
+    name: string;
+    size: number;
+    content?: string;
+    isBase64?: boolean;
+    contentType?: string;
+  }[];
 }
 
 interface PendingSend {

@@ -52,5 +52,11 @@ export interface SendEmailPayload {
   bodyHtml: string;
   bodyText?: string;
   inReplyTo?: string;
-  attachments?: { name: string; size: number }[];
+  attachments?: {
+    name: string;
+    size: number;
+    content?: string;
+    isBase64?: boolean;
+    contentType?: string;
+  }[];
 }
