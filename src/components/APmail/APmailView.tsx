@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAPmail } from './APmailContext';
+import type { EmailItem } from './types';
 import {
   ArrowLeft,
   Trash2,
@@ -11,6 +12,9 @@ import {
   Sparkles,
   Paperclip,
   Loader2,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
 } from 'lucide-react';
 
 const EmailHtmlViewer: React.FC<{ html: string; isDark: boolean }> = ({ html, isDark }) => {
@@ -87,6 +91,7 @@ export const APmailView: React.FC = () => {
     user,
     selectedEmail,
     selectEmail,
+    emails,
     toggleStar,
     deleteEmail,
     markAsRead,
@@ -98,13 +103,30 @@ export const APmailView: React.FC = () => {
 
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
-  const [isThreadExpanded, setIsThreadExpanded] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   if (!selectedEmail) return null;
 
   const email = selectedEmail;
-  const senderName = email.from.name || email.from.address;
-  const initial = senderName.charAt(0).toUpperCase();
+
+  // Find all messages in the conversation thread
+  const cleanSelectedSubject = (email.subject || '').replace(/^(re|fwd|fw):\s*/i, '').trim().toLowerCase();
+  const threadEmails = emails
+    .filter((m) => {
+      if (m.threadKey && email.threadKey && m.threadKey === email.threadKey) return true;
+      const cleanSubj = (m.subject || '').replace(/^(re|fwd|fw):\s*/i, '').trim().toLowerCase();
+      return cleanSubj && cleanSubj === cleanSelectedSubject;
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const latestEmail = threadEmails.length > 0 ? threadEmails[threadEmails.length - 1] : email;
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   const handleSendReply = async () => {
     if (!replyText.trim()) return;
@@ -116,7 +138,6 @@ export const APmailView: React.FC = () => {
 
   const handleSelectSmartReply = (text: string) => {
     setReplyText(text);
-    // Smoothly focus the textarea
     const textarea = document.getElementById('apmail-quick-reply-box') as HTMLTextAreaElement;
     if (textarea) textarea.focus();
   };
@@ -128,7 +149,20 @@ export const APmailView: React.FC = () => {
     }
   };
 
-  const smartReplies = getSmartReplies(email);
+  const handleDownloadAttachment = (item: EmailItem, idx: number, filename: string) => {
+    if (user?.token && item.uid) {
+      showToast(`Downloading ${filename}...`);
+      const link = document.createElement('a');
+      link.href = `/api/apmail/emails/attachment?uid=${item.uid}&index=${idx}&folder=${encodeURIComponent(item.folder || 'INBOX')}`;
+      link.setAttribute('download', filename);
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const smartReplies = getSmartReplies(latestEmail);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#181a20] rounded-xl shadow-2xs border border-gray-200/80 dark:border-gray-800 overflow-hidden select-text transition-colors">
@@ -162,8 +196,14 @@ export const APmailView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {threadEmails.length > 1 && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium flex items-center gap-1">
+              <MessageSquare className="w-3 h-3" />
+              <span>{threadEmails.length} messages</span>
+            </span>
+          )}
           <span className="text-[11px] text-gray-400 hidden sm:inline">
-            {new Date(email.date).toLocaleDateString([], {
+            {new Date(latestEmail.date).toLocaleDateString([], {
               month: 'short',
               day: 'numeric',
               hour: '2-digit',
@@ -186,7 +226,7 @@ export const APmailView: React.FC = () => {
       {/* Email Body Scroll Area */}
       <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4">
         {/* Subject Header */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 pb-2 border-b border-gray-100 dark:border-gray-800">
           <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-snug">
             {email.subject}
           </h1>
@@ -197,104 +237,130 @@ export const APmailView: React.FC = () => {
           )}
         </div>
 
-        {/* Sender Metadata Card */}
-        <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-100 dark:border-gray-800/80">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-blue-600 text-white font-bold text-sm flex items-center justify-center shadow-xs shrink-0">
-              {initial}
-            </div>
-            <div className="min-w-0 leading-tight">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white truncate">
-                  {senderName}
-                </span>
-                <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate hidden sm:inline">
-                  &lt;{email.from.address}&gt;
-                </span>
-              </div>
-              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
-                to {email.to.map((t) => t.name || t.address).join(', ')}
-              </p>
-            </div>
-          </div>
+        {/* THREADED MESSAGES LIST */}
+        <div className="space-y-3">
+          {threadEmails.map((item, idx) => {
+            const isLast = idx === threadEmails.length - 1;
+            const isExpanded = expandedIds[item.id] !== undefined ? expandedIds[item.id] : isLast;
+            const itemSender = item.from.name || item.from.address;
+            const itemInitial = itemSender.charAt(0).toUpperCase();
 
-          <span className="text-[10px] sm:text-xs text-gray-400 whitespace-nowrap">
-            {new Date(email.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </div>
-
-        {/* Thread History Accordion (if in reply) */}
-        {email.subject.startsWith('Re:') && (
-          <div className="border border-gray-200 dark:border-gray-700/60 rounded-lg p-2.5 bg-gray-50/50 dark:bg-[#1f2228]/50 text-xs">
-            <button
-              onClick={() => setIsThreadExpanded(!isThreadExpanded)}
-              className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium flex items-center gap-1 cursor-pointer"
-            >
-              <span>{isThreadExpanded ? '▲ Hide previous message' : '▼ Show original message thread'}</span>
-            </button>
-            {isThreadExpanded && (
-              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-xs whitespace-pre-wrap">
-                On {new Date(email.date).toLocaleDateString()}, {email.from.address} wrote:
-                {"\n> "}Please refer to earlier updates.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Message Body Content */}
-        <div className="text-xs sm:text-sm text-gray-800 dark:text-gray-200 leading-relaxed space-y-3 pt-1">
-          {email.bodyHtml ? (
-            <EmailHtmlViewer html={email.bodyHtml} isDark={isDark} />
-          ) : email.bodyText ? (
-            <p className="whitespace-pre-wrap font-sans">{email.bodyText}</p>
-          ) : (
-            <div className="py-8 flex flex-col items-center justify-center text-gray-400 gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-              <p className="text-xs">Loading email content from Gmail...</p>
-            </div>
-          )}
-        </div>
-
-        {/* Attachments Section */}
-        {email.hasAttachments && email.attachments && email.attachments.length > 0 && (
-          <div className="pt-3 border-t border-gray-100 dark:border-gray-800/80">
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1.5">
-              <Paperclip className="w-3.5 h-3.5" />
-              <span>{email.attachments.length} Attachment{email.attachments.length > 1 ? 's' : ''}</span>
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {email.attachments.map((att, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    if (user?.token && email.uid) {
-                      showToast(`Downloading ${att.filename}...`);
-                      const link = document.createElement('a');
-                      link.href = `/api/apmail/emails/attachment?uid=${email.uid}&index=${idx}&folder=${encodeURIComponent(email.folder || 'INBOX')}`;
-                      link.setAttribute('download', att.filename);
-                      link.target = '_blank';
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    }
-                  }}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/60 dark:hover:bg-gray-800 border border-gray-200/80 dark:border-gray-700/60 text-xs transition-colors cursor-pointer"
-                >
-                  <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-800 dark:text-gray-200 truncate max-w-[140px] sm:max-w-[200px]">
-                      {att.filename}
-                    </p>
-                    <p className="text-[10px] text-gray-400">
-                      {(att.size / 1024).toFixed(1)} KB
-                    </p>
+            return (
+              <div
+                key={item.id}
+                className={`rounded-xl border transition-all ${
+                  isExpanded
+                    ? 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#181a20] p-4 shadow-2xs'
+                    : 'border-gray-200/60 dark:border-gray-800/60 bg-gray-50/50 dark:bg-[#1c1f26]/40 px-3 py-2 cursor-pointer hover:bg-gray-100/50 dark:hover:bg-[#20232c]/50'
+                }`}
+                onClick={!isExpanded ? () => toggleExpand(item.id) : undefined}
+              >
+                {/* Header Card */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                      {itemInitial}
+                    </div>
+                    <div className="min-w-0 leading-tight">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white truncate">
+                          {itemSender}
+                        </span>
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate hidden sm:inline">
+                          &lt;{item.from.address}&gt;
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                          to {item.to.map((t) => t.name || t.address).join(', ')}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 truncate mt-0.5">
+                          {item.snippet}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <Download className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 shrink-0" />
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] sm:text-xs text-gray-400 whitespace-nowrap">
+                      {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleStar(item.id);
+                      }}
+                      className="p-1 rounded text-gray-400 hover:text-amber-500 cursor-pointer"
+                    >
+                      <Star
+                        className={`w-3.5 h-3.5 ${
+                          item.isStarred ? 'fill-amber-400 text-amber-400' : 'text-gray-300 dark:text-gray-600'
+                        }`}
+                      />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpand(item.id);
+                      }}
+                      className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                      title={isExpanded ? 'Collapse' : 'Expand'}
+                    >
+                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+
+                {/* Expanded Message Body */}
+                {isExpanded && (
+                  <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-xs sm:text-sm text-gray-800 dark:text-gray-200 leading-relaxed space-y-3">
+                    {item.bodyHtml ? (
+                      <EmailHtmlViewer html={item.bodyHtml} isDark={isDark} />
+                    ) : item.bodyText ? (
+                      <p className="whitespace-pre-wrap font-sans">{item.bodyText}</p>
+                    ) : (
+                      <div className="py-6 flex flex-col items-center justify-center text-gray-400 gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                        <p className="text-xs">Loading email content from Gmail...</p>
+                      </div>
+                    )}
+
+                    {/* Attachments Section */}
+                    {item.hasAttachments && item.attachments && item.attachments.length > 0 && (
+                      <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1.5">
+                          <Paperclip className="w-3.5 h-3.5" />
+                          <span>{item.attachments.length} Attachment{item.attachments.length > 1 ? 's' : ''}</span>
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {item.attachments.map((att, attIdx) => (
+                            <div
+                              key={attIdx}
+                              onClick={() => handleDownloadAttachment(item, attIdx, att.filename)}
+                              className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/60 dark:hover:bg-gray-800 border border-gray-200/80 dark:border-gray-700/60 text-xs transition-colors cursor-pointer"
+                            >
+                              <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-800 dark:text-gray-200 truncate max-w-[140px] sm:max-w-[200px]">
+                                  {att.filename}
+                                </p>
+                                <p className="text-[10px] text-gray-400">
+                                  {(att.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                              <Download className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         {/* AI Smart Reply Chips */}
         <div className="pt-3">
@@ -324,7 +390,7 @@ export const APmailView: React.FC = () => {
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`Quick reply to ${senderName}... (Ctrl + Enter to send)`}
+              placeholder={`Quick reply to ${(latestEmail.from.name || latestEmail.from.address)}... (Ctrl + Enter to send)`}
               className="w-full p-3 bg-transparent text-xs sm:text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 resize-none focus:outline-none"
             />
             <div className="px-3 py-2 bg-gray-100/60 dark:bg-[#22252c] flex items-center justify-between border-t border-gray-200/60 dark:border-gray-700/60 text-xs">

@@ -15,6 +15,8 @@ import {
   Square,
   MinusSquare,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 export const APmailList: React.FC = () => {
@@ -37,6 +39,9 @@ export const APmailList: React.FC = () => {
     unreadOnly,
     starredOnly,
     hasAttachmentOnly,
+    page,
+    totalCount,
+    loadPage,
   } = useAPmail();
 
   const [swipingId, setSwipingId] = useState<string | null>(null);
@@ -159,10 +164,36 @@ export const APmailList: React.FC = () => {
           )}
         </div>
 
-        <div className="text-[11px] text-gray-400 flex items-center gap-1">
-          <span>{filteredEmails.length} messages</span>
+        <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+          <span>
+            {totalCount > 0 ? (
+              `${(page - 1) * 40 + 1}-${Math.min(page * 40, totalCount)} of ${totalCount.toLocaleString()}`
+            ) : (
+              `${filteredEmails.length} messages`
+            )}
+          </span>
           {(unreadOnly || starredOnly || hasAttachmentOnly) && (
             <span className="text-blue-500 font-medium">(filtered)</span>
+          )}
+          {totalCount > 40 && (
+            <div className="flex items-center gap-0.5 ml-1">
+              <button
+                onClick={() => loadPage(page - 1)}
+                disabled={page <= 1 || isLoading}
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 cursor-pointer"
+                title="Newer messages"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => loadPage(page + 1)}
+                disabled={page * 40 >= totalCount || isLoading}
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 cursor-pointer"
+                title="Older messages"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           )}
         </div>
       </div>

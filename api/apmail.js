@@ -164,6 +164,7 @@ export default async function handler(req, res) {
     const folderParam = req.query.folder || req.body?.folder || 'INBOX';
     const mailboxPath = mapFolderToGmail(folderParam);
     const limit = Math.min(60, Math.max(1, parseInt(req.query.limit || req.body?.limit || '40', 10)));
+    const page = Math.max(1, parseInt(req.query.page || req.body?.page || '1', 10));
 
     const client = getImapClient(credentials);
 
@@ -192,68 +193,72 @@ export default async function handler(req, res) {
         const total = uids.length;
 
         if (total > 0) {
-          // Slice latest UIDs (ascending array, so latest are at the end)
-          const targetUids = uids.slice(-limit);
-          const range = targetUids.join(',');
+          const endIndex = total - (page - 1) * limit;
+          const startIndex = Math.max(0, endIndex - limit);
+          const targetUids = endIndex > 0 ? uids.slice(startIndex, endIndex) : [];
 
-          for await (const msg of client.fetch(
-            range,
-            {
-              envelope: true,
-              flags: true,
-              bodyStructure: true,
-              internalDate: true
-            },
-            { uid: true }
-          )) {
-            const hasAttachments = Boolean(
-              msg.bodyStructure?.childNodes?.some(
-                (p) => p.disposition === 'attachment' || Boolean(p.dispositionParameters?.filename)
-              )
-            );
+          if (targetUids.length > 0) {
+            const range = targetUids.join(',');
 
-            const fromObj = {
-              name: msg.envelope?.from?.[0]?.name || '',
-              address: msg.envelope?.from?.[0]?.address || ''
-            };
+            for await (const msg of client.fetch(
+              range,
+              {
+                envelope: true,
+                flags: true,
+                bodyStructure: true,
+                internalDate: true
+              },
+              { uid: true }
+            )) {
+              const hasAttachments = Boolean(
+                msg.bodyStructure?.childNodes?.some(
+                  (p) => p.disposition === 'attachment' || Boolean(p.dispositionParameters?.filename)
+                )
+              );
 
-            const toList = (msg.envelope?.to || []).map((t) => ({
-              name: t.name || '',
-              address: t.address || ''
-            }));
+              const fromObj = {
+                name: msg.envelope?.from?.[0]?.name || '',
+                address: msg.envelope?.from?.[0]?.address || ''
+              };
 
-            const ccList = (msg.envelope?.cc || []).map((t) => ({
-              name: t.name || '',
-              address: t.address || ''
-            }));
+              const toList = (msg.envelope?.to || []).map((t) => ({
+                name: t.name || '',
+                address: t.address || ''
+              }));
 
-            const subject = msg.envelope?.subject || '(No Subject)';
-            const dateStr = msg.envelope?.date
-              ? new Date(msg.envelope.date).toISOString()
-              : msg.internalDate
-              ? new Date(msg.internalDate).toISOString()
-              : new Date().toISOString();
+              const ccList = (msg.envelope?.cc || []).map((t) => ({
+                name: t.name || '',
+                address: t.address || ''
+              }));
 
-            const cleanSubject = subject.replace(/^(re|fwd|fw):\s*/i, '').trim();
+              const subject = msg.envelope?.subject || '(No Subject)';
+              const dateStr = msg.envelope?.date
+                ? new Date(msg.envelope.date).toISOString()
+                : msg.internalDate
+                ? new Date(msg.internalDate).toISOString()
+                : new Date().toISOString();
 
-            emails.push({
-              id: `msg-${msg.uid}`,
-              uid: msg.uid,
-              messageId: msg.envelope?.messageId || null,
-              inReplyTo: msg.envelope?.inReplyTo || null,
-              threadKey: cleanSubject.toLowerCase(),
-              from: fromObj,
-              to: toList,
-              cc: ccList,
-              subject,
-              date: dateStr,
-              snippet: subject,
-              isRead: msg.flags ? msg.flags.has('\\Seen') : true,
-              isStarred: msg.flags ? msg.flags.has('\\Flagged') : false,
-              folder: folderParam.toUpperCase(),
-              category: inferCategory(msg),
-              hasAttachments
-            });
+              const cleanSubject = subject.replace(/^(re|fwd|fw):\s*/i, '').trim();
+
+              emails.push({
+                id: `msg-${msg.uid}`,
+                uid: msg.uid,
+                messageId: msg.envelope?.messageId || null,
+                inReplyTo: msg.envelope?.inReplyTo || null,
+                threadKey: cleanSubject.toLowerCase(),
+                from: fromObj,
+                to: toList,
+                cc: ccList,
+                subject,
+                date: dateStr,
+                snippet: subject,
+                isRead: msg.flags ? msg.flags.has('\\Seen') : true,
+                isStarred: msg.flags ? msg.flags.has('\\Flagged') : false,
+                folder: folderParam.toUpperCase(),
+                category: inferCategory(msg),
+                hasAttachments
+              });
+            }
           }
         }
       } finally {
@@ -268,7 +273,10 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         emails,
-        total: emails.length,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
         folder: folderParam
       });
     } catch (err) {
@@ -328,8 +336,20 @@ export default async function handler(req, res) {
           contentId: att.cid
         }));
 
+        const fromObj = parsed.from?.value?.[0]
+          ? { name: parsed.from.value[0].name || '', address: parsed.from.value[0].address || '' }
+          : undefined;
+
+        const toList = parsed.to?.value?.map((t) => ({ name: t.name || '', address: t.address || '' }));
+        const ccList = parsed.cc?.value?.map((t) => ({ name: t.name || '', address: t.address || '' }));
+
         result = {
           uid: Number(uid),
+          messageId: parsed.messageId || null,
+          inReplyTo: parsed.inReplyTo || null,
+          from: fromObj,
+          to: toList,
+          cc: ccList,
           subject: parsed.subject || '(No Subject)',
           bodyHtml: parsed.html || parsed.textAsHtml || (parsed.text ? `<pre>${parsed.text}</pre>` : ''),
           bodyText: parsed.text || '',

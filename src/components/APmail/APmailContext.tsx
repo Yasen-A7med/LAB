@@ -38,11 +38,14 @@ interface APmailContextType {
   isDark: boolean;
   toast: string | null;
   pendingSend: PendingSend | null;
+  page: number;
+  totalCount: number;
 
   // Actions
   login: (email: string, appPassword: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   syncMailbox: () => Promise<void>;
+  loadPage: (page: number) => Promise<void>;
   setActiveFolder: (folder: string) => void;
   setActiveCategory: (cat: string) => void;
   setSearchQuery: (query: string) => void;
@@ -183,15 +186,18 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const toggleTheme = () => setIsDark((p) => !p);
 
+  const [page, setPage] = useState<number>(1);
+  const [totalCount, setTotalCount] = useState<number>(0);
+
   // Real IMAP Fetch from Gmail
   const fetchEmails = useCallback(
-    async (folder: string, tokenOverride?: string) => {
+    async (folder: string, pageNum: number = 1, tokenOverride?: string) => {
       const token = tokenOverride || user?.token;
       if (!token) return;
 
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/apmail/emails/list?folder=${encodeURIComponent(folder)}&limit=50`, {
+        const res = await fetch(`/api/apmail/emails/list?folder=${encodeURIComponent(folder)}&limit=40&page=${pageNum}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -202,6 +208,10 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const otherFolderEmails = prev.filter((e) => e.folder !== folder.toUpperCase());
             return [...data.emails, ...otherFolderEmails];
           });
+          if (typeof data.total === 'number') {
+            setTotalCount(data.total);
+          }
+          setPage(pageNum);
         } else if (data.error) {
           showToast(data.error);
         }
@@ -214,10 +224,19 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [user?.token, showToast]
   );
 
+  const loadPage = useCallback(
+    async (newPage: number) => {
+      if (newPage < 1) return;
+      await fetchEmails(activeFolder, newPage);
+    },
+    [activeFolder, fetchEmails]
+  );
+
   // Auto-fetch emails on mount or activeFolder change
   useEffect(() => {
     if (user?.token) {
-      fetchEmails(activeFolder);
+      setPage(1);
+      fetchEmails(activeFolder, 1);
     }
   }, [user?.token, activeFolder, fetchEmails]);
 
@@ -225,7 +244,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const syncMailbox = useCallback(async () => {
     if (!user?.token) return;
     showToast('Checking Gmail for new messages...');
-    await fetchEmails(activeFolder);
+    await fetchEmails(activeFolder, 1);
     showToast('Mailbox synchronized with Gmail');
   }, [user?.token, activeFolder, fetchEmails, showToast]);
 
@@ -711,24 +730,49 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      const matchSubj = mail.subject.toLowerCase().includes(q);
-      const matchSnippet = mail.snippet.toLowerCase().includes(q);
-      const matchBody = (mail.bodyText || '').toLowerCase().includes(q);
-      const matchSender =
-        (mail.from.name || '').toLowerCase().includes(q) ||
-        mail.from.address.toLowerCase().includes(q);
-      const matchAttachments = mail.attachments?.some((a) =>
-        a.filename.toLowerCase().includes(q)
-      );
-      if (!matchSubj && !matchSnippet && !matchBody && !matchSender && !matchAttachments)
+      if (!matchGmailQuery(mail, searchQuery)) {
         return false;
+      }
     }
 
     return true;
   });
 
-  // Dynamic unread count computation
+function matchGmailQuery(mail: EmailItem, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+
+  const terms = q.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+  for (const rawTerm of terms) {
+    const term = rawTerm.replace(/^"|"$/g, '');
+    if (term.startsWith('from:')) {
+      const val = term.slice(5);
+      const sender = `${mail.from.name || ''} ${mail.from.address}`.toLowerCase();
+      if (!sender.includes(val)) return false;
+    } else if (term.startsWith('to:')) {
+      const val = term.slice(3);
+      const toRecipients = mail.to.map((t) => `${t.name || ''} ${t.address}`).join(' ').toLowerCase();
+      if (!toRecipients.includes(val)) return false;
+    } else if (term.startsWith('subject:')) {
+      const val = term.slice(8);
+      if (!mail.subject.toLowerCase().includes(val)) return false;
+    } else if (term === 'is:unread') {
+      if (mail.isRead) return false;
+    } else if (term === 'is:read') {
+      if (!mail.isRead) return false;
+    } else if (term === 'is:starred') {
+      if (!mail.isStarred) return false;
+    } else if (term === 'has:attachment' || term === 'has:attachments' || term === 'has:file') {
+      if (!mail.hasAttachments) return false;
+    } else {
+      const fullText = `${mail.subject} ${mail.snippet} ${mail.from.name || ''} ${mail.from.address} ${mail.bodyText || ''}`.toLowerCase();
+      if (!fullText.includes(term)) return false;
+    }
+  }
+  return true;
+}
+
+// Dynamic unread count computation
   const unreadCounts: Record<string, number> = {
     INBOX: emails.filter((e) => e.folder === 'INBOX' && !e.isRead).length,
     STARRED: emails.filter((e) => e.isStarred && e.folder !== 'TRASH' && !e.isRead).length,
@@ -771,9 +815,12 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isDark,
         toast,
         pendingSend,
+        page,
+        totalCount,
         login,
         logout,
         syncMailbox,
+        loadPage,
         setActiveFolder,
         setActiveCategory,
         setSearchQuery,
