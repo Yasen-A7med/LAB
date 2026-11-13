@@ -16,6 +16,9 @@ export type EmailCategory = 'primary' | 'promotions' | 'social' | 'updates';
 export interface EmailItem {
   id: string;
   uid: number;
+  messageId?: string | null;
+  inReplyTo?: string | null;
+  threadKey?: string;
   from: EmailAddress;
   to: EmailAddress[];
   cc?: EmailAddress[];

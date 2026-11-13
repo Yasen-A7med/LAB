@@ -191,7 +191,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/apmail/emails/list?folder=${encodeURIComponent(folder)}&limit=40`, {
+        const res = await fetch(`/api/apmail/emails/list?folder=${encodeURIComponent(folder)}&limit=50`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -676,11 +676,10 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const toggleCheckAll = () => {
-    const currentList = emails.filter((e) => e.folder === activeFolder);
-    if (checkedIds.length === currentList.length && currentList.length > 0) {
+    if (checkedIds.length === filteredEmails.length && filteredEmails.length > 0) {
       setCheckedIds([]);
     } else {
-      setCheckedIds(currentList.map((e) => e.id));
+      setCheckedIds(filteredEmails.map((e) => e.id));
     }
   };
 
@@ -688,6 +687,8 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const filteredEmails = emails.filter((mail) => {
     if (activeFolder === 'STARRED') {
       if (!mail.isStarred || mail.folder === 'TRASH') return false;
+    } else if (activeFolder === 'ALL') {
+      if (mail.folder === 'TRASH') return false;
     } else if (mail.folder !== activeFolder) {
       return false;
     }
@@ -733,6 +734,8 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     STARRED: emails.filter((e) => e.isStarred && e.folder !== 'TRASH' && !e.isRead).length,
     SENT: 0,
     DRAFTS: emails.filter((e) => e.folder === 'DRAFTS').length,
+    ALL: emails.filter((e) => e.folder !== 'TRASH' && !e.isRead).length,
+    SPAM: emails.filter((e) => e.folder === 'SPAM' && !e.isRead).length,
     TRASH: 0,
   };
 

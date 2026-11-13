@@ -8,6 +8,8 @@ import {
   Trash2,
   Plus,
   X,
+  Archive,
+  AlertOctagon,
 } from 'lucide-react';
 
 interface Props {
@@ -23,6 +25,8 @@ export const APmailSidebar: React.FC<Props> = ({ isOpen, onCloseMobile }) => {
     { id: 'STARRED', name: 'Starred', icon: Star },
     { id: 'SENT', name: 'Sent', icon: Send },
     { id: 'DRAFTS', name: 'Drafts', icon: FileText },
+    { id: 'ALL', name: 'All Mail', icon: Archive },
+    { id: 'SPAM', name: 'Spam', icon: AlertOctagon },
     { id: 'TRASH', name: 'Trash', icon: Trash2 },
   ];
 

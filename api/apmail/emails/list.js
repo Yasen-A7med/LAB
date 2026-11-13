@@ -79,9 +79,28 @@ export default async function handler(req, res) {
     const total = client.mailbox.exists || 0;
 
     try {
-      if (total > 0) {
-        const startSeq = Math.max(1, total - limit + 1);
-        const range = `${startSeq}:${total}`;
+      const searchQuery = (req.query.q || req.body?.q || '').trim();
+      let uids = [];
+
+      if (searchQuery) {
+        try {
+          uids = await client.search(
+            { or: [{ subject: searchQuery }, { from: searchQuery }, { body: searchQuery }] },
+            { uid: true }
+          );
+        } catch {
+          uids = await client.search({ all: true }, { uid: true });
+        }
+      } else {
+        uids = await client.search({ all: true }, { uid: true });
+      }
+
+      const totalUidsCount = uids.length;
+
+      if (totalUidsCount > 0) {
+        // Slice the latest `limit` UIDs (ascending array, so latest are at the end)
+        const targetUids = uids.slice(-limit);
+        const range = targetUids.join(',');
 
         for await (const msg of client.fetch(
           range,
@@ -121,9 +140,14 @@ export default async function handler(req, res) {
             ? new Date(msg.internalDate).toISOString()
             : new Date().toISOString();
 
+          const cleanSubject = subject.replace(/^(re|fwd|fw):\s*/i, '').trim();
+
           emails.push({
             id: `msg-${msg.uid}`,
             uid: msg.uid,
+            messageId: msg.envelope?.messageId || null,
+            inReplyTo: msg.envelope?.inReplyTo || null,
+            threadKey: cleanSubject.toLowerCase(),
             from: fromObj,
             to: toList,
             cc: ccList,
@@ -144,13 +168,13 @@ export default async function handler(req, res) {
 
     await client.logout();
 
-    // Reverse to show newest messages first
-    emails.reverse();
+    // Sort descending by date so newest emails (today, latest hour) are at the top
+    emails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return res.status(200).json({
       success: true,
       emails,
-      total,
+      total: total || emails.length,
       folder: folderParam
     });
   } catch (err) {

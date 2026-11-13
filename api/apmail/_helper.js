@@ -85,7 +85,9 @@ export function mapFolderToGmail(folder) {
   if (f === 'STARRED') return '[Gmail]/Starred';
   if (f === 'SENT') return '[Gmail]/Sent Mail';
   if (f === 'DRAFTS') return '[Gmail]/Drafts';
-  if (f === 'TRASH') return '[Gmail]/Trash';
+  if (f === 'TRASH' || f === 'BIN') return '[Gmail]/Trash';
   if (f === 'SPAM') return '[Gmail]/Spam';
+  if (f === 'ALL' || f === 'ALL MAIL' || f === 'ARCHIVE') return '[Gmail]/All Mail';
+  if (f === 'IMPORTANT') return '[Gmail]/Important';
   return 'INBOX';
 }

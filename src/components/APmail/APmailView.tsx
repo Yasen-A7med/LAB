@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAPmail } from './APmailContext';
 import {
   ArrowLeft,
@@ -13,8 +13,78 @@ import {
   Loader2,
 } from 'lucide-react';
 
+const EmailHtmlViewer: React.FC<{ html: string; isDark: boolean }> = ({ html, isDark }) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    const styledHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <base target="_blank">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              margin: 0;
+              padding: 12px 4px;
+              color: ${isDark ? '#e2e8f0' : '#1e293b'};
+              word-break: break-word;
+              overflow-wrap: break-word;
+              background-color: transparent;
+            }
+            img { max-width: 100%; height: auto; }
+            table { max-width: 100% !important; }
+            a { color: #2563eb; text-decoration: underline; }
+          </style>
+        </head>
+        <body>${html}</body>
+      </html>
+    `;
+    doc.write(styledHtml);
+    doc.close();
+
+    const updateHeight = () => {
+      if (doc.documentElement && iframe) {
+        const height = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight);
+        iframe.style.height = `${height + 20}px`;
+      }
+    };
+
+    updateHeight();
+    const timer = setTimeout(updateHeight, 300);
+
+    const resizeObserver = new ResizeObserver(updateHeight);
+    if (doc.body) {
+      resizeObserver.observe(doc.body);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      resizeObserver.disconnect();
+    };
+  }, [html, isDark]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      title="Email Content"
+      sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+      className="w-full border-0 bg-transparent min-h-[160px] overflow-hidden"
+    />
+  );
+};
+
 export const APmailView: React.FC = () => {
   const {
+    user,
     selectedEmail,
     selectEmail,
     toggleStar,
@@ -22,6 +92,8 @@ export const APmailView: React.FC = () => {
     markAsRead,
     quickReply,
     getSmartReplies,
+    isDark,
+    showToast,
   } = useAPmail();
 
   const [replyText, setReplyText] = useState('');
@@ -172,12 +244,9 @@ export const APmailView: React.FC = () => {
         {/* Message Body Content */}
         <div className="text-xs sm:text-sm text-gray-800 dark:text-gray-200 leading-relaxed space-y-3 pt-1">
           {email.bodyHtml ? (
-            <div
-              className="prose dark:prose-invert max-w-none text-xs sm:text-sm overflow-x-auto"
-              dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
-            />
+            <EmailHtmlViewer html={email.bodyHtml} isDark={isDark} />
           ) : email.bodyText ? (
-            <p className="whitespace-pre-wrap">{email.bodyText}</p>
+            <p className="whitespace-pre-wrap font-sans">{email.bodyText}</p>
           ) : (
             <div className="py-8 flex flex-col items-center justify-center text-gray-400 gap-2">
               <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
@@ -197,6 +266,18 @@ export const APmailView: React.FC = () => {
               {email.attachments.map((att, idx) => (
                 <div
                   key={idx}
+                  onClick={() => {
+                    if (user?.token && email.uid) {
+                      showToast(`Downloading ${att.filename}...`);
+                      const link = document.createElement('a');
+                      link.href = `/api/apmail/emails/attachment?uid=${email.uid}&index=${idx}&folder=${encodeURIComponent(email.folder || 'INBOX')}`;
+                      link.setAttribute('download', att.filename);
+                      link.target = '_blank';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }
+                  }}
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/60 dark:hover:bg-gray-800 border border-gray-200/80 dark:border-gray-700/60 text-xs transition-colors cursor-pointer"
                 >
                   <FileText className="w-4 h-4 text-blue-500 shrink-0" />

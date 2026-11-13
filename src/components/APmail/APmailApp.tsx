@@ -32,10 +32,15 @@ const APmailContent: React.FC<APmailAppProps> = ({ onBack }) => {
     unreadCounts,
     pendingSend,
     undoSend,
+    filteredEmails,
+    deleteEmail,
+    toggleStar,
+    toggleCheck,
   } = useAPmail();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
   // Handle responsive resize
   useEffect(() => {
@@ -54,7 +59,7 @@ const APmailContent: React.FC<APmailAppProps> = ({ onBack }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Global Keyboard Shortcuts
+  // Global Keyboard Shortcuts (Gmail style: j/k, o/Enter, u, s, e/#, x, c, /)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -69,19 +74,49 @@ const APmailContent: React.FC<APmailAppProps> = ({ onBack }) => {
       if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
         openCompose();
-      } else if (e.key === 'u' || e.key === 'U') {
+      } else if (e.key === 'u' || e.key === 'U' || e.key === 'Escape') {
         e.preventDefault();
         selectEmail(null);
       } else if (e.key === '/') {
         e.preventDefault();
         const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
         if (searchInput) searchInput.focus();
+      } else if (e.key === 'j') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, filteredEmails.length - 1));
+      } else if (e.key === 'k') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter' || e.key === 'o') {
+        if (!selectedEmail && focusedIndex >= 0 && focusedIndex < filteredEmails.length) {
+          e.preventDefault();
+          selectEmail(filteredEmails[focusedIndex]);
+        }
+      } else if (e.key === 's') {
+        e.preventDefault();
+        if (selectedEmail) {
+          toggleStar(selectedEmail.id);
+        } else if (focusedIndex >= 0 && focusedIndex < filteredEmails.length) {
+          toggleStar(filteredEmails[focusedIndex].id);
+        }
+      } else if (e.key === 'x') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < filteredEmails.length) {
+          toggleCheck(filteredEmails[focusedIndex].id);
+        }
+      } else if (e.key === '#' || e.key === 'e') {
+        e.preventDefault();
+        if (selectedEmail) {
+          deleteEmail(selectedEmail.id);
+        } else if (focusedIndex >= 0 && focusedIndex < filteredEmails.length) {
+          deleteEmail(filteredEmails[focusedIndex].id);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openCompose, selectEmail]);
+  }, [openCompose, selectEmail, selectedEmail, focusedIndex, filteredEmails, toggleStar, toggleCheck, deleteEmail]);
 
   if (!user) {
     return <APmailLogin onBack={onBack} />;
