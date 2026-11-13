@@ -65,6 +65,31 @@ export function playTrashSound() {
   }
 }
 
+export function playUndoSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(783.99, now); // G5
+    osc.frequency.exponentialRampToValueAtTime(523.25, now + 0.12); // C5
+    
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } catch {
+    // silent fallback
+  }
+}
+
 export function playClickSound() {
   try {
     const ctx = getAudioContext();

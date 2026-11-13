@@ -7,14 +7,16 @@ import {
   FileText,
   Trash2,
   Plus,
+  X,
 } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
+  onCloseMobile?: () => void;
 }
 
-export const APmailSidebar: React.FC<Props> = ({ isOpen }) => {
-  const { activeFolder, setActiveFolder, unreadCounts, openCompose } = useAPmail();
+export const APmailSidebar: React.FC<Props> = ({ isOpen, onCloseMobile }) => {
+  const { activeFolder, setActiveFolder, unreadCounts, openCompose, selectEmail } = useAPmail();
 
   const navItems = [
     { id: 'INBOX', name: 'Inbox', icon: Inbox },
@@ -24,17 +26,41 @@ export const APmailSidebar: React.FC<Props> = ({ isOpen }) => {
     { id: 'TRASH', name: 'Trash', icon: Trash2 },
   ];
 
+  const handleSelectFolder = (folderId: string) => {
+    setActiveFolder(folderId);
+    selectEmail(null);
+    if (onCloseMobile) {
+      onCloseMobile();
+    }
+  };
+
   return (
     <aside
       className={`h-[calc(100vh-3.5rem)] flex flex-col justify-between transition-all duration-150 ease-in-out shrink-0 select-none py-3 ${
-        isOpen ? 'w-56 px-2' : 'w-16 px-1.5 items-center'
-      } bg-[#f6f8fc] dark:bg-[#14171a]`}
+        isOpen ? 'w-64 sm:w-56 px-2' : 'w-16 px-1.5 items-center'
+      } bg-[#f6f8fc] dark:bg-[#14171a] border-r border-gray-200/40 dark:border-gray-800/40`}
     >
       <div className="flex flex-col w-full space-y-3">
-        {/* Compose Button */}
+        {/* Mobile Header in Drawer */}
+        {onCloseMobile && (
+          <div className="flex sm:hidden items-center justify-between px-3 pb-2 border-b border-gray-200/50 dark:border-gray-800">
+            <span className="font-semibold text-xs text-gray-500 uppercase tracking-wider">Folders</span>
+            <button
+              onClick={onCloseMobile}
+              className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Compose Button (Desktop / Drawer) */}
         <div className={`w-full ${isOpen ? 'px-1' : 'flex justify-center'}`}>
           <button
-            onClick={() => openCompose()}
+            onClick={() => {
+              openCompose();
+              if (onCloseMobile) onCloseMobile();
+            }}
             className={`flex items-center gap-3 bg-[#c2e7ff] hover:bg-[#b0dbf8] active:bg-[#9ed0f4] dark:bg-[#22242a] dark:hover:bg-[#2b2e35] text-[#001d35] dark:text-[#c2e7ff] font-medium shadow-2xs hover:shadow-xs transition-all rounded-xl cursor-pointer ${
               isOpen ? 'px-4 py-3 w-full justify-start' : 'w-11 h-11 justify-center rounded-xl'
             }`}
@@ -54,10 +80,10 @@ export const APmailSidebar: React.FC<Props> = ({ isOpen }) => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveFolder(item.id)}
+                onClick={() => handleSelectFolder(item.id)}
                 title={!isOpen ? item.name : undefined}
                 className={`w-full flex items-center justify-between rounded-lg transition-colors cursor-pointer text-xs font-medium ${
-                  isOpen ? 'px-3.5 py-2' : 'p-2.5 justify-center'
+                  isOpen ? 'px-3.5 py-2.5' : 'p-2.5 justify-center'
                 } ${
                   isActive
                     ? 'bg-[#d3e3fd] text-[#001d35] dark:bg-[#004a77] dark:text-[#c2e7ff] font-semibold'

@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { EmailItem, UserSession, SendEmailPayload } from './types';
 import { INITIAL_EMAILS } from './demoData';
-import { playSendSound, playTrashSound } from './soundEffects';
+import { playSendSound, playTrashSound, playUndoSound } from './soundEffects';
 
 interface ComposeData {
   to: string;
@@ -10,6 +10,12 @@ interface ComposeData {
   subject: string;
   body: string;
   inReplyTo?: string;
+  attachments?: { name: string; size: number }[];
+}
+
+interface PendingSend {
+  payload: SendEmailPayload;
+  countdown: number;
 }
 
 interface APmailContextType {
@@ -18,6 +24,8 @@ interface APmailContextType {
   activeCategory: string;
   searchQuery: string;
   unreadOnly: boolean;
+  starredOnly: boolean;
+  hasAttachmentOnly: boolean;
   emails: EmailItem[];
   filteredEmails: EmailItem[];
   selectedEmail: EmailItem | null;
@@ -29,6 +37,7 @@ interface APmailContextType {
   composeData: ComposeData;
   isDark: boolean;
   toast: string | null;
+  pendingSend: PendingSend | null;
 
   // Actions
   login: (email?: string, appPassword?: string, isDemo?: boolean) => Promise<{ success: boolean; error?: string }>;
@@ -36,7 +45,9 @@ interface APmailContextType {
   setActiveFolder: (folder: string) => void;
   setActiveCategory: (cat: string) => void;
   setSearchQuery: (query: string) => void;
-  setUnreadOnly: (unreadOnly: boolean | ((prev: boolean) => boolean)) => void;
+  setUnreadOnly: (val: boolean | ((prev: boolean) => boolean)) => void;
+  setStarredOnly: (val: boolean | ((prev: boolean) => boolean)) => void;
+  setHasAttachmentOnly: (val: boolean | ((prev: boolean) => boolean)) => void;
   selectEmail: (email: EmailItem | null) => void;
   toggleStar: (id: string, e?: React.MouseEvent) => void;
   markAsRead: (id: string, read: boolean) => void;
@@ -44,6 +55,7 @@ interface APmailContextType {
   batchDelete: () => void;
   batchMarkRead: (read: boolean) => void;
   sendEmail: (payload: SendEmailPayload) => Promise<boolean>;
+  undoSend: () => void;
   quickReply: (bodyText: string) => Promise<boolean>;
   toggleCheck: (id: string) => void;
   toggleCheckAll: () => void;
@@ -53,6 +65,7 @@ interface APmailContextType {
   updateDraft: (data: Partial<ComposeData>) => void;
   toggleTheme: () => void;
   showToast: (msg: string) => void;
+  getSmartReplies: (email: EmailItem) => string[];
 }
 
 const APmailContext = createContext<APmailContextType | undefined>(undefined);
@@ -85,19 +98,27 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activeCategory, setActiveCategory] = useState<string>('primary');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [unreadOnly, setUnreadOnly] = useState<boolean>(false);
+  const [starredOnly, setStarredOnly] = useState<boolean>(false);
+  const [hasAttachmentOnly, setHasAttachmentOnly] = useState<boolean>(false);
   const [selectedEmail, setSelectedEmail] = useState<EmailItem | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isComposeOpen, setIsComposeOpen] = useState<boolean>(false);
   const [composeMode, setComposeMode] = useState<'docked' | 'maximized' | 'minimized'>('docked');
-  
+
+  // Pending send for 5s Undo grace period
+  const [pendingSend, setPendingSend] = useState<PendingSend | null>(null);
+  const pendingSendTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingPayloadRef = useRef<SendEmailPayload | null>(null);
+
   // Compose draft state with auto-restore from localStorage
   const [composeData, setComposeData] = useState<ComposeData>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_DRAFT);
-      return saved ? JSON.parse(saved) : { to: '', subject: '', body: '' };
+      return saved ? JSON.parse(saved) : { to: '', subject: '', body: '', attachments: [] };
     } catch {
-      return { to: '', subject: '', body: '' };
+      return { to: '', subject: '', body: '', attachments: [] };
     }
   });
 
@@ -153,7 +174,42 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const toggleTheme = () => setIsDark((p) => !p);
 
-  // Login handler (Supports both real App Password and 1-Click Demo)
+  // Contextual Smart Replies
+  const getSmartReplies = (email: EmailItem): string[] => {
+    const text = `${email.subject} ${email.snippet}`.toLowerCase();
+    if (text.includes('meet') || text.includes('schedule') || text.includes('calendar') || text.includes('sync')) {
+      return [
+        'Works for me! See you then.',
+        'Can we reschedule for later?',
+        'Sent you a calendar invite.',
+        'Thanks! Looking forward to it.',
+      ];
+    }
+    if (text.includes('review') || text.includes('pr') || text.includes('code') || text.includes('deploy')) {
+      return [
+        'LGTM! Ready to merge.',
+        'Reviewing right now, hold on.',
+        'Looks solid, great job!',
+        'Left a few quick notes on the PR.',
+      ];
+    }
+    if (text.includes('invoice') || text.includes('payment') || text.includes('receipt') || text.includes('bill')) {
+      return [
+        'Received and forwarded to accounting.',
+        'Payment processed successfully.',
+        'Could you resend the PDF invoice?',
+        'Thank you for the receipt!',
+      ];
+    }
+    return [
+      'Sounds great, thanks!',
+      'Got it, will update you soon.',
+      'Thanks for following up!',
+      'Please send over more details.',
+    ];
+  };
+
+  // Login handler
   const login = async (email?: string, appPassword?: string, isDemo?: boolean) => {
     setIsLoading(true);
     try {
@@ -173,7 +229,6 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return { success: false, error: 'Email and App Password required.' };
       }
 
-      // Check if backend API is reachable
       try {
         const res = await fetch('/api/apmail/auth/login', {
           method: 'POST',
@@ -187,7 +242,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return { success: true };
         }
       } catch {
-        // Fallback to direct client-side session if running offline/without API
+        // Fallback to direct client-side session
       }
 
       const formattedName = email.split('@')[0];
@@ -277,7 +332,6 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast(read ? 'Marked as read' : 'Marked as unread');
   };
 
-  // Auto-saving draft
   const updateDraft = (data: Partial<ComposeData>) => {
     setComposeData((prev) => {
       const next = { ...prev, ...data };
@@ -302,8 +356,8 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsComposeOpen(false);
   };
 
-  // Send Email with chime feedback
-  const sendEmail = async (payload: SendEmailPayload) => {
+  // Commit the final email send to state and storage
+  const commitFinalSend = useCallback((payload: SendEmailPayload) => {
     playSendSound();
     const newSentEmail: EmailItem = {
       id: `sent-${Date.now()}`,
@@ -318,15 +372,70 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isRead: true,
       isStarred: false,
       folder: 'SENT',
-      hasAttachments: false,
+      hasAttachments: Boolean(payload.attachments && payload.attachments.length > 0),
+      attachments: payload.attachments?.map((a) => ({
+        filename: a.name,
+        contentType: 'application/octet-stream',
+        size: a.size,
+      })),
     };
 
     setEmails((prev) => [newSentEmail, ...prev]);
     localStorage.removeItem(STORAGE_KEY_DRAFT);
-    setComposeData({ to: '', subject: '', body: '' });
+    setComposeData({ to: '', subject: '', body: '', attachments: [] });
+    setPendingSend(null);
+    pendingPayloadRef.current = null;
+  }, [user]);
+
+  // Send Email with 5s Undo Window
+  const sendEmail = async (payload: SendEmailPayload) => {
+    // Clear any previous timer
+    if (pendingSendTimerRef.current) clearTimeout(pendingSendTimerRef.current);
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+    pendingPayloadRef.current = payload;
+    setPendingSend({ payload, countdown: 5 });
     closeCompose();
-    showToast('Message sent');
+
+    // Start 1-second interval for visible countdown
+    countdownIntervalRef.current = setInterval(() => {
+      setPendingSend((curr) => {
+        if (!curr || curr.countdown <= 1) return null;
+        return { ...curr, countdown: curr.countdown - 1 };
+      });
+    }, 1000);
+
+    // After 5s, commit send
+    pendingSendTimerRef.current = setTimeout(() => {
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      if (pendingPayloadRef.current) {
+        commitFinalSend(pendingPayloadRef.current);
+      }
+    }, 5000);
+
     return true;
+  };
+
+  // Undo Send Action
+  const undoSend = () => {
+    if (pendingSendTimerRef.current) clearTimeout(pendingSendTimerRef.current);
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+    if (pendingPayloadRef.current) {
+      playUndoSound();
+      setComposeData({
+        to: pendingPayloadRef.current.to,
+        subject: pendingPayloadRef.current.subject,
+        body: pendingPayloadRef.current.bodyText || '',
+        attachments: pendingPayloadRef.current.attachments || [],
+      });
+      setIsComposeOpen(true);
+      setComposeMode('docked');
+    }
+
+    setPendingSend(null);
+    pendingPayloadRef.current = null;
+    showToast('Sending undone — draft restored');
   };
 
   // Instant Inline Quick Reply
@@ -374,7 +483,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Filtered emails based on folder, category, search, and unreadOnly toggle
+  // Filtered emails based on folder, category, search, and filter chips
   const filteredEmails = emails.filter((mail) => {
     if (activeFolder === 'STARRED') {
       if (!mail.isStarred || mail.folder === 'TRASH') return false;
@@ -387,6 +496,14 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     if (unreadOnly && mail.isRead) {
+      return false;
+    }
+
+    if (starredOnly && !mail.isStarred) {
+      return false;
+    }
+
+    if (hasAttachmentOnly && !mail.hasAttachments) {
       return false;
     }
 
@@ -419,6 +536,8 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         activeCategory,
         searchQuery,
         unreadOnly,
+        starredOnly,
+        hasAttachmentOnly,
         emails,
         filteredEmails,
         selectedEmail,
@@ -430,12 +549,15 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         composeData,
         isDark,
         toast,
+        pendingSend,
         login,
         logout,
         setActiveFolder,
         setActiveCategory,
         setSearchQuery,
         setUnreadOnly,
+        setStarredOnly,
+        setHasAttachmentOnly,
         selectEmail,
         toggleStar,
         markAsRead,
@@ -443,6 +565,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         batchDelete,
         batchMarkRead,
         sendEmail,
+        undoSend,
         quickReply,
         toggleCheck,
         toggleCheckAll,
@@ -452,6 +575,7 @@ export const APmailProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateDraft,
         toggleTheme,
         showToast,
+        getSmartReplies,
       }}
     >
       {children}
