@@ -12,7 +12,8 @@ import {
   Check,
   ShieldCheck,
   Award,
-  Compass
+  Compass,
+  Rocket
 } from 'lucide-react';
 import AnimatedLiquidBackground from './AnimatedLiquidBackground';
 
@@ -64,6 +65,18 @@ const YoutubeIcon: React.FC<{ size?: number; className?: string }> = ({ size = 2
 );
 
 const projects: ProjectCardData[] = [
+  {
+    id: 'pneumovibe',
+    title: 'PneumoVibe',
+    desc: 'Autonomous dual dry-cleaning drone fleet simulator for the Benban 1.8 GW solar park. 3D mission control, raster autopilot, storm response and full pilot HUD.',
+    icon: Rocket,
+    tag: 'Simulation Suite',
+    iconColor: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/10 border-cyan-500/20',
+    glowColor: 'group-hover:shadow-cyan-500/20 group-hover:border-cyan-500/40',
+    btnText: 'Launch Simulator',
+    badgeText: 'New 2026'
+  },
   {
     id: 'apmail',
     title: 'APmail',
