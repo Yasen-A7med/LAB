@@ -31,6 +31,7 @@ const WhatsAppViewerApp = React.lazy(() => import('./components/WhatsAppViewer/W
 const CertificateAutomatorApp = React.lazy(() => import('./components/CA/CertificateAutomatorApp'));
 const PersonalityQuizApp = React.lazy(() => import('./components/PersonalityQuiz/PersonalityQuizApp'));
 const APmailApp = React.lazy(() => import('./components/APmail/APmailApp'));
+const PneumoVibeApp = React.lazy(() => import('./components/PneumoVibe/PneumoVibeApp'));
 
 const App: React.FC = () => {
   const { currentView, handleBack, launchProject } = useNavigation();
@@ -89,6 +90,11 @@ const App: React.FC = () => {
       )}
       {currentView === 'apmail' && (
         <APmailApp
+          onBack={handleBack}
+        />
+      )}
+      {currentView === 'pneumovibe' && (
+        <PneumoVibeApp
           onBack={handleBack}
         />
       )}
